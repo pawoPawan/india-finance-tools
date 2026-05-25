@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Schwab Equity Tax Analyzer — India</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f0f2f5;min-height:100vh;color:#1a1a2e}
+
+/* HEADER */
+.header{background:#1a1a2e;color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;box-shadow:0 2px 10px rgba(0,0,0,.3)}
+.header-title{font-size:17px;font-weight:700}
+.currency-toggle{display:flex;background:rgba(255,255,255,.12);border-radius:9px;overflow:hidden;border:1px solid rgba(255,255,255,.15)}
+.currency-btn{padding:7px 18px;border:none;cursor:pointer;font-size:14px;font-weight:700;background:transparent;color:rgba(255,255,255,.55);transition:all .18s}
+.currency-btn.active{background:#4a9eff;color:#fff}
+
+/* UPLOAD */
+.upload-section{margin:20px;background:#fff;border-radius:14px;padding:28px 24px;display:flex;gap:20px;align-items:stretch}
+.upload-card{flex:1;border:2px dashed #c5d0e0;border-radius:12px;padding:28px 20px;text-align:center;cursor:pointer;transition:all .2s;display:flex;flex-direction:column;align-items:center;gap:8px}
+.upload-card:hover{border-color:#4a9eff;background:#f8fbff}
+.upload-card.ready{border-color:#2e7d32;border-style:solid;background:#f1f8e9}
+.upload-card svg{color:#4a9eff;margin-bottom:4px}
+.upload-card.ready svg{color:#2e7d32}
+.upload-card h3{font-size:15px;color:#333;margin:0}
+.upload-card p{font-size:12px;color:#888;margin:0}
+.upload-card .upload-hint{font-size:11px;color:#aaa;margin-top:2px}
+.upload-btn-inner{display:inline-block;padding:8px 20px;background:#1a1a2e;color:#fff;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;margin-top:6px}
+.upload-card.ready .upload-btn-inner{background:#2e7d32}
+.upload-plus{display:flex;align-items:center;justify-content:center;font-size:24px;color:#ccc;padding:0 4px;flex-shrink:0}
+.or-divider{margin:20px 0;color:#ccc;font-size:13px;display:flex;align-items:center;gap:10px}
+.or-divider::before,.or-divider::after{content:'';flex:1;height:1px;background:#e0e0e0}
+.demo-btn{display:inline-block;padding:10px 24px;background:#e8f5e9;color:#2e7d32;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer;border:1px solid #c8e6c9}
+input[type=file]{display:none}
+
+/* TAX SETTINGS */
+.settings-panel{margin:0 20px 16px;background:#fff;border-radius:14px;padding:16px;box-shadow:0 1px 6px rgba(0,0,0,.06)}
+.settings-title{font-size:12px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:.8px;margin-bottom:14px}
+.settings-row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.field-grp{display:flex;flex-direction:column;gap:5px;flex:1;min-width:130px}
+.field-grp label{font-size:11px;color:#777;font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+.field-grp input,.field-grp select{padding:8px 10px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:14px;font-weight:600;outline:none;transition:border-color .15s;background:#fff}
+.field-grp input:focus,.field-grp select:focus{border-color:#4a9eff}
+.regime-toggle{display:flex;border:1.5px solid #e0e0e0;border-radius:8px;overflow:hidden}
+.regime-btn{flex:1;padding:8px 10px;border:none;background:transparent;cursor:pointer;font-size:13px;font-weight:600;color:#888;transition:all .15s}
+.regime-btn.active{background:#1a1a2e;color:#fff}
+.action-btn{padding:9px 14px;background:#1a1a2e;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap;height:37px}
+.action-btn:hover{background:#2d3a6e}
+.action-btn.green{background:#2e7d32}
+.stcg-result{font-size:12px;padding:6px 10px;background:#fff3e0;border-radius:7px;color:#bf360c;font-weight:600;align-self:center;white-space:nowrap}
+
+/* PROGRESS */
+.progress-area{margin:0 20px 10px;display:none}
+.progress-bar{height:4px;background:#e0e0e0;border-radius:2px;overflow:hidden;margin-bottom:6px}
+.progress-fill{height:100%;background:#4a9eff;border-radius:2px;transition:width .3s}
+.progress-text{font-size:12px;color:#888;text-align:center}
+.rate-log{font-size:11px;color:#aaa;text-align:center;margin-top:4px;max-height:36px;overflow:hidden}
+
+/* SUMMARY */
+.summary-grid{margin:0 20px 14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:12px}
+.sum-card{background:#fff;border-radius:12px;padding:14px 16px;box-shadow:0 1px 6px rgba(0,0,0,.06)}
+.sum-card .slabel{font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px}
+.sum-card .sval{font-size:19px;font-weight:800;color:#1a1a2e;line-height:1}
+.sum-card .ssub{font-size:11px;color:#888;margin-top:3px}
+.sum-card.green .sval{color:#2e7d32}
+.sum-card.red .sval{color:#c62828}
+.sum-card.orange .sval{color:#e65100}
+
+/* FILTER */
+.filter-bar{margin:0 20px 12px;display:flex;gap:8px;flex-wrap:wrap}
+.chip{padding:6px 14px;border-radius:20px;border:1.5px solid #ddd;background:#fff;cursor:pointer;font-size:12px;font-weight:600;color:#555;transition:all .15s;user-select:none}
+.chip.active{background:#1a1a2e;color:#fff;border-color:#1a1a2e}
+.chip.rsu.active{background:#1565c0;border-color:#1565c0}
+.chip.espp.active{background:#6a1b9a;border-color:#6a1b9a}
+.chip.ltcg.active{background:#2e7d32;border-color:#2e7d32}
+.chip.stcg.active{background:#e65100;border-color:#e65100}
+.section-label{padding:2px 20px 10px;font-size:12px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.8px}
+
+/* LOT CARDS */
+.lots-wrap{padding:0 20px 28px;display:flex;flex-direction:column;gap:12px}
+.lot-card{background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.07)}
+.lot-top{padding:13px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.lot-top-left{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.lot-date{font-size:15px;font-weight:800}
+.badge{padding:3px 9px;border-radius:10px;font-size:11px;font-weight:700}
+.badge.stcg{background:#fff3e0;color:#bf360c}
+.badge.ltcg{background:#e8f5e9;color:#1b5e20}
+.badge.rsu{background:#e3f2fd;color:#0d47a1}
+.badge.espp{background:#f3e5f5;color:#4a148c}
+.schwab-pill{display:flex;align-items:center;gap:5px}
+.schwab-dot{width:24px;height:24px;background:#00a8e0;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:7px;font-weight:800}
+.schwab-name{font-size:10px;font-weight:700;color:#666;letter-spacing:.6px}
+
+.lot-grid{display:grid;grid-template-columns:repeat(4,1fr);padding:4px 16px 14px;gap:6px}
+.lf-label{font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.lf-val{font-size:16px;font-weight:800;color:#1a1a2e}
+.lf-sub{font-size:10px;color:#aaa;margin-top:2px}
+
+.lot-footer{background:#f7faff;padding:11px 16px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid #eef2f8;flex-wrap:wrap;gap:6px}
+.gain-line{font-size:14px;font-weight:800}
+.gain-line.pos{color:#2e7d32}
+.gain-line.neg{color:#c62828}
+.tax-line{font-size:13px;color:#555;font-weight:500}
+
+/* INR extra info row */
+.inr-row{background:#fafbff;border-top:1px solid #eef2f8;padding:10px 16px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ir-label{font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
+.ir-val{font-size:12px;font-weight:700}
+.ir-val.pos{color:#2e7d32}
+.ir-val.neg{color:#c62828}
+.ir-source{font-size:10px;padding:2px 6px;border-radius:5px;font-weight:700;display:inline-block;margin-top:2px}
+.ir-source.rbi{background:#e8f5e9;color:#1b5e20}
+.ir-source.yahoo{background:#e8f5ff;color:#1a237e}
+.ir-source.api{background:#e3f2fd;color:#0d47a1}
+.ir-source.est{background:#fff3e0;color:#bf360c}
+.ir-source.manual{background:#f3e5f5;color:#4a148c}
+
+/* Rate override */
+.rate-override{border-top:1px solid #eef2f8;padding:8px 16px;display:flex;align-items:center;gap:8px;background:#fafafa}
+.rate-override label{font-size:11px;color:#888;white-space:nowrap}
+.rate-override input{width:90px;padding:4px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-weight:600}
+.rate-override button{padding:4px 10px;background:#1a1a2e;color:#fff;border:none;border-radius:6px;font-size:11px;cursor:pointer}
+
+.source-tag{padding:2px 6px;border-radius:5px;font-size:10px;font-weight:700}
+.source-tag.rbi{background:#e8f5e9;color:#1b5e20}
+.source-tag.yahoo{background:#e8f5ff;color:#1a237e}
+.source-tag.api{background:#e3f2fd;color:#0d47a1}
+.source-tag.est{background:#fff3e0;color:#bf360c}
+.source-tag.manual{background:#f3e5f5;color:#4a148c}
+
+/* FX rate row (shown in both modes) */
+.fx-row{background:#f0f7ff;border-top:1px solid #deeeff;padding:9px 16px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.fx-item{display:flex;flex-direction:column;flex:1;min-width:80px}
+.fx-item .fx-label{font-size:10px;color:#5c7fa8;text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px}
+.fx-item .fx-val{font-size:13px;font-weight:800;color:#1a1a2e}
+.fx-item .fx-val.pos{color:#2e7d32}
+.fx-item .fx-val.neg{color:#c62828}
+.fx-arrow{font-size:14px;color:#90a8c8;align-self:center;padding:0 2px}
+.fx-src{font-size:9px;padding:1px 5px;border-radius:4px;font-weight:700;margin-left:3px;vertical-align:middle}
+.fx-src.rbi{background:#e8f5e9;color:#1b5e20}
+.fx-src.yahoo{background:#e8f5ff;color:#1a237e}
+.fx-src.api{background:#e3f2fd;color:#0d47a1}
+.fx-src.est{background:#fff3e0;color:#bf360c}
+.fx-src.manual{background:#f3e5f5;color:#4a148c}
+.fx-src.manual{background:#f3e5f5;color:#4a148c}
+
+/* STCG → LTCG conversion banner */
+.ltcg-banner{background:#fff8e1;border-top:1px solid #ffe082;padding:10px 16px}
+.ltcg-banner-top{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.ltcg-banner-top .clock{font-size:13px}
+.ltcg-banner-top .ltcg-date{font-size:13px;font-weight:700;color:#e65100}
+.ltcg-banner-top .days-badge{padding:3px 8px;background:#ff6d00;color:#fff;border-radius:8px;font-size:11px;font-weight:800}
+.ltcg-tax-compare{display:grid;grid-template-columns:1fr auto 1fr 1fr;gap:6px;align-items:center}
+.ltcg-tax-compare .tc-box{background:#fff;border-radius:8px;padding:7px 10px;border:1px solid #ffe082}
+.ltcg-tax-compare .tc-label{font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
+.ltcg-tax-compare .tc-val{font-size:13px;font-weight:800}
+.ltcg-tax-compare .tc-val.stcg-col{color:#bf360c}
+.ltcg-tax-compare .tc-val.ltcg-col{color:#2e7d32}
+.ltcg-tax-compare .tc-arrow{font-size:16px;color:#bbb;text-align:center}
+.ltcg-tax-compare .tc-saving{background:#e8f5e9;border:1px solid #c8e6c9;border-radius:8px;padding:7px 10px}
+.ltcg-tax-compare .tc-saving .tc-label{color:#81c784}
+.ltcg-tax-compare .tc-saving .tc-val{color:#1b5e20}
+
+/* RSU / ESPP category summary */
+.cat-summary{margin:0 20px 14px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.cat-card{background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 1px 8px rgba(0,0,0,.07)}
+.cat-card-header{padding:10px 16px;display:flex;align-items:center;gap:8px}
+.cat-card-header .cat-icon{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff}
+.cat-icon.rsu{background:#1565c0}
+.cat-icon.espp{background:#6a1b9a}
+.cat-card-header .cat-title{font-size:14px;font-weight:800;color:#1a1a2e}
+.cat-card-header .cat-shares{margin-left:auto;font-size:12px;color:#aaa;font-weight:600}
+.cat-rows{display:grid;grid-template-columns:1fr 1fr;gap:0}
+.cat-row{padding:10px 16px;border-top:1px solid #f0f2f5}
+.cat-row .cr-label{font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.cat-row .cr-val{font-size:15px;font-weight:800;color:#1a1a2e}
+.cat-row .cr-sub{font-size:10px;color:#aaa;margin-top:2px}
+.cat-row .cr-val.pos{color:#2e7d32}
+.cat-row .cr-val.neg{color:#c62828}
+.cat-row.gain-row{grid-column:1/-1;background:#f7faff;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px}
+.cat-row.gain-row .cr-val{font-size:14px}
+
+.empty-state{text-align:center;padding:50px 20px;color:#aaa}
+.disclaimer{margin:0 20px 20px;padding:12px 14px;background:#fffde7;border-radius:10px;border:1px solid #fff9c4;font-size:12px;color:#795548;line-height:1.7}
+.disclaimer strong{color:#5d4037}
+
+@media(max-width:500px){
+  .lot-grid{grid-template-columns:repeat(2,1fr)}
+  .inr-row{grid-template-columns:1fr 1fr}
+  .summary-grid{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-title">📊 Equity Tax Analyzer — India</div>
+  <div class="currency-toggle">
+    <button class="currency-btn active" onclick="setCurrency('USD')">$ USD</button>
+    <button class="currency-btn" onclick="setCurrency('INR')">₹ INR</button>
+  </div>
+</div>
+
+<!-- UPLOAD -->
+<div class="upload-section" id="uploadSection">
+  <!-- Card 1: Schwab CSV -->
+  <div class="upload-card" id="csvCard" onclick="document.getElementById('csvFile').click()">
+    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    <h3>Schwab Equity CSV</h3>
+    <p>EquityAwardsCenter_EquityDetails_*.csv</p>
+    <div class="upload-hint" style="font-size:11.5px;color:#555;line-height:1.6;text-align:left;background:#f0f4ff;border-radius:6px;padding:8px 10px;margin-top:4px">
+      <strong>How to download:</strong><br>
+      1. <a href="https://client.schwab.com/clientapps/accounts/summary/" target="_blank" onclick="event.stopPropagation()" style="color:#1565c0;font-weight:600">Log in to Schwab ↗</a><br>
+      2. Go to <strong>Equity Awards</strong><br>
+      3. Click <strong>View Equity Details</strong><br>
+      4. Click <strong>Show All Historical Awards</strong> (left side)<br>
+      5. Click <strong>Download CSV</strong> (top right)
+    </div>
+    <div class="upload-btn-inner" id="csvBtnLabel">Choose File</div>
+  </div>
+
+  <div class="upload-plus">+</div>
+
+  <!-- Card 2: RBI XLS -->
+  <div class="upload-card" id="xlsCard" onclick="document.getElementById('xlsFile').click()">
+    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    <h3>RBI USD/INR Rate File</h3>
+    <p>Reference Rate Archive (.xls)</p>
+    <div class="upload-hint" style="font-size:11.5px;color:#555;line-height:1.6;text-align:left;background:#f0f4ff;border-radius:6px;padding:8px 10px;margin-top:4px">
+      <strong>How to download:</strong><br>
+      1. Click below to open RBI archive<br>
+      2. Set <em>From Date</em> to <strong>01/01/2019</strong> (or earliest lot date)<br>
+      3. Set <em>To Date</em> to today<br>
+      4. Click <strong>Search</strong> → then <strong>Download</strong><br>
+      <a href="https://www.rbi.org.in/scripts/referenceratearchive.aspx" target="_blank"
+         onclick="event.stopPropagation()"
+         style="display:inline-block;margin-top:6px;background:#1565c0;color:#fff;padding:4px 12px;border-radius:5px;font-weight:600;font-size:12px;text-decoration:none">
+        Open RBI Archive ↗
+      </a>
+    </div>
+    <div class="upload-btn-inner" id="xlsBtnLabel" style="margin-top:4px">Choose File</div>
+  </div>
+</div>
+<input type="file" id="csvFile" accept=".csv" style="display:none" onchange="handleCsvUpload(event)">
+<input type="file" id="xlsFile" accept=".xls,.htm,.html" style="display:none" onchange="handleXlsUpload(event)">
+
+<!-- TAX SETTINGS (hidden until data loaded) -->
+<div class="settings-panel" id="settingsPanel" style="display:none">
+  <div class="settings-title">Portfolio &amp; Tax Settings</div>
+  <div class="settings-row">
+    <div class="field-grp">
+      <label>Current Stock Price ($)</label>
+      <input type="number" id="currentPrice" placeholder="e.g. 120.00" step="0.01" oninput="rerender()">
+    </div>
+    <div class="field-grp">
+      <label>Today USD → INR</label>
+      <input type="number" id="todayINR" value="84.50" step="0.01" oninput="saveTodayINR();rerender()">
+    </div>
+    <div class="field-grp" style="min-width:90px;max-width:120px">
+      <label>LTCG Rate</label>
+      <input type="number" id="ltcgRate" value="12.5" step="0.5" oninput="rerender()">
+    </div>
+  </div>
+  <div class="settings-row" style="margin-top:12px">
+    <div class="field-grp">
+      <label>Tax Regime</label>
+      <div class="regime-toggle">
+        <button class="regime-btn active" id="regimeNew" onclick="setRegime('new')">New 2025-26</button>
+        <button class="regime-btn" id="regimeOld" onclick="setRegime('old')">Old</button>
+      </div>
+    </div>
+    <div class="field-grp">
+      <label>Other Annual Income (₹ Lakhs, after deductions)</label>
+      <input type="number" id="otherIncome" value="0" step="0.5" placeholder="e.g. 25" oninput="rerender()">
+    </div>
+    <div class="stcg-result" id="stcgRateDisplay">STCG: 30%</div>
+    <button class="action-btn" onclick="resetUpload()">↑ New Files</button>
+  </div>
+</div>
+
+
+<div id="rateTableSection" style="display:none"><div id="missingRatesBanner"></div><table style="display:none"><tbody id="rateTableBody"></tbody></table></div>
+
+<!-- RSU / ESPP CATEGORY SUMMARY -->
+<div id="catSummarySection" style="display:none">
+  <div class="cat-summary" id="catSummaryGrid"></div>
+</div>
+
+<!-- SUMMARY -->
+<div id="summarySection" style="display:none">
+  <div class="summary-grid" id="summaryGrid"></div>
+  <div class="filter-bar">
+    <div class="chip active" onclick="setFilter('all',this)">All Lots</div>
+    <div class="chip rsu" onclick="setFilter('RSU',this)">RSU</div>
+    <div class="chip espp" onclick="setFilter('ESPP',this)">ESPP</div>
+    <div class="chip ltcg" onclick="setFilter('LTCG',this)">LTCG</div>
+    <div class="chip stcg" onclick="setFilter('STCG',this)">STCG</div>
+  </div>
+  <div class="section-label" id="sectionLabel"></div>
+</div>
+
+<!-- LOTS -->
+<div class="lots-wrap" id="lotsWrap"></div>
+
+<!-- DISCLAIMER -->
+<div class="disclaimer" id="disclaimerSection" style="display:none">
+  <strong>India Tax Note:</strong> LTCG applies to holdings held &gt;24 months (12.5% post July 2024 budget, no indexation). STCG on foreign equity is taxed at your income slab rate — enter your other income above for an accurate STCG rate. For RSU: capital gain cost basis = FMV at vest (perquisite already taxed as salary). For ESPP: cost basis = Purchase FMV, not discounted price. INR gain = stock appreciation in INR + forex gain (USD/INR change). Exchange rates are fetched from RBI reference rate archive; API rates used where RBI data is unavailable. <strong>Consult a CA for ITR filing.</strong>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════
+let allLots = [];
+let ratesMap = {};      // isoDate → {rate, source}
+let currency = 'USD';
+let activeFilter = 'all';
+let taxRegime = 'new';
+const TODAY = new Date().toISOString().split('T')[0];
+
+// ═══════════════════════════════════════════════════════════════════
+// INDIA TAX SLAB CALCULATION
+// ═══════════════════════════════════════════════════════════════════
+// FY 2025-26 New Regime (Budget 2025)
+const NEW_SLABS = [
+  {max:400000,  rate:0},
+  {max:800000,  rate:0.05},
+  {max:1200000, rate:0.10},
+  {max:1600000, rate:0.15},
+  {max:2000000, rate:0.20},
+  {max:2400000, rate:0.25},
+  {max:Infinity,rate:0.30},
+];
+// Old Regime
+const OLD_SLABS = [
+  {max:250000,  rate:0},
+  {max:500000,  rate:0.05},
+  {max:1000000, rate:0.20},
+  {max:Infinity,rate:0.30},
+];
+
+function slabTax(incomeINR, slabs) {
+  let tax = 0, prev = 0;
+  for (const slab of slabs) {
+    if (incomeINR <= prev) break;
+    const taxable = Math.min(incomeINR, slab.max) - prev;
+    tax += taxable * slab.rate;
+    prev = slab.max;
+  }
+  return tax;
+}
+
+function computeSTCGRate() {
+  const otherL = parseFloat(document.getElementById('otherIncome').value) || 0;
+  const otherINR = otherL * 100000;
+  const ltcgRatePct = parseFloat(document.getElementById('ltcgRate').value) || 12.5;
+
+  // Compute total STCG gains in INR for all STCG lots
+  const currentPrice = parseFloat(document.getElementById('currentPrice').value) || 0;
+  const todayINR = parseFloat(document.getElementById('todayINR').value) || 84.5;
+
+  let totalSTCGinINR = 0;
+  allLots.filter(l => l.taxCategory === 'STCG').forEach(lot => {
+    const gainUSD = (currentPrice - lot.acquisitionPrice) * lot.sharesHeld;
+    if (gainUSD > 0) {
+      const purchaseRate = ratesMap[lot.dateAcquired]?.rate || todayINR;
+      const gainINR = currentPrice * lot.sharesHeld * todayINR - lot.acquisitionPrice * lot.sharesHeld * purchaseRate;
+      totalSTCGinINR += Math.max(gainINR, 0);
+    }
+  });
+
+  const slabs = taxRegime === 'new' ? NEW_SLABS : OLD_SLABS;
+  const taxOnOther = slabTax(otherINR, slabs);
+  const taxOnTotal = slabTax(otherINR + totalSTCGinINR, slabs);
+  const stcgTax = taxOnTotal - taxOnOther;
+  const effectiveRate = totalSTCGinINR > 0 ? stcgTax / totalSTCGinINR : (taxRegime === 'new' ? 0.30 : 0.30);
+
+  // Marginal slab rate at income level
+  const slabRate = getMarginalRate(otherINR + Math.max(totalSTCGinINR / 2, 1), slabs);
+
+  document.getElementById('stcgRateDisplay').textContent =
+    `STCG: ${(slabRate * 100).toFixed(0)}% (eff. ${(effectiveRate * 100).toFixed(1)}%)`;
+
+  return slabRate;
+}
+
+function getMarginalRate(incomeINR, slabs) {
+  let prev = 0;
+  for (const slab of slabs) {
+    if (incomeINR <= slab.max) return slab.rate;
+    prev = slab.max;
+  }
+  return 0.30;
+}
+
+function setRegime(r) {
+  taxRegime = r;
+  document.getElementById('regimeNew').classList.toggle('active', r === 'new');
+  document.getElementById('regimeOld').classList.toggle('active', r === 'old');
+  rerender();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CURRENCY / FILTER
+// ═══════════════════════════════════════════════════════════════════
+function setCurrency(c) {
+  currency = c;
+  document.querySelectorAll('.currency-btn').forEach((b,i) => b.classList.toggle('active', (i===0&&c==='USD')||(i===1&&c==='INR')));
+  rerender();
+}
+
+function setFilter(f, el) {
+  activateFilter(f);
+  rerender();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// FILE HANDLERS — CSV + XLS (no API calls)
+// ═══════════════════════════════════════════════════════════════════
+let pendingLots = null;      // CSV parsed, waiting for XLS
+let pendingXlsRates = null;  // XLS parsed, waiting for CSV
+
+async function handleCsvUpload(e) {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  const text = await file.text();
+  const lots = parseSchawbCSV(text);
+  if (!lots.length) { alert('No lots found in CSV. Check file format.'); return; }
+
+  // Mark CSV card ready
+  document.getElementById('csvCard').classList.add('ready');
+  document.getElementById('csvBtnLabel').textContent = '✓ ' + file.name;
+
+  if (pendingXlsRates) {
+    initWithBoth(lots, pendingXlsRates);
+  } else {
+    pendingLots = lots;
+  }
+}
+
+async function handleXlsUpload(e) {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  const rates = parseRBIXls(await file.text());
+  if (!Object.keys(rates).length) { alert('No rates found in the XLS. Make sure you downloaded the correct RBI Reference Rate file.'); return; }
+
+  // Mark XLS card ready
+  document.getElementById('xlsCard').classList.add('ready');
+  document.getElementById('xlsBtnLabel').textContent = '✓ ' + file.name;
+
+  if (pendingLots) {
+    initWithBoth(pendingLots, rates);
+  } else {
+    pendingXlsRates = rates;
+  }
+}
+
+// Parse the RBI HTML-as-XLS: DD/MM/YYYY → rate
+function parseRBIXls(text) {
+  const doc = new DOMParser().parseFromString(text, 'text/html');
+  const rates = {};
+  doc.querySelectorAll('tr').forEach(row => {
+    const cells = [...row.querySelectorAll('td')];
+    if (cells.length < 2) return;
+    const parts = cells[0].textContent.trim().split('/');
+    if (parts.length !== 3) return;
+    const iso = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+    const rate = parseFloat(cells[1].textContent.replace(/,/g,''));
+    if (!isNaN(rate) && rate > 30 && rate < 200) rates[iso] = rate;
+  });
+  return rates;
+}
+
+// Find the nearest available RBI rate on or before a given date (for holidays/weekends)
+function nearestRBIRate(isoDate, xlsRates) {
+  if (xlsRates[isoDate]) return { rate: xlsRates[isoDate], exact: true };
+  // Look back up to 4 calendar days (covers long weekends + holidays)
+  const d = new Date(isoDate + 'T00:00:00');
+  for (let i = 1; i <= 4; i++) {
+    d.setDate(d.getDate() - 1);
+    const key = d.toISOString().split('T')[0];
+    if (xlsRates[key]) return { rate: xlsRates[key], exact: false, usedDate: key };
+  }
+  return null;
+}
+
+function initWithBoth(lots, xlsRates) {
+  allLots = lots;
+  ratesMap = {};
+
+  const lotDates = [...new Set(lots.map(l => l.dateAcquired))];
+  lotDates.forEach(date => {
+    const found = nearestRBIRate(date, xlsRates);
+    if (found) {
+      ratesMap[date] = { rate: found.rate, source: 'rbi' };
+    }
+  });
+
+  // Today's rate: use most recent available from XLS
+  const todayFound = nearestRBIRate(TODAY, xlsRates);
+  if (todayFound) {
+    document.getElementById('todayINR').value = todayFound.rate.toFixed(2);
+    ratesMap[TODAY] = { rate: todayFound.rate, source: 'rbi' };
+  }
+
+  showMainUI();
+  activateFilter('all');
+  renderRateTable();
+  rerender();
+}
+
+// ── Reset filter chip + activeFilter variable ──────────────────────
+function activateFilter(f) {
+  activeFilter = f;
+  document.querySelectorAll('.chip').forEach(c => {
+    const isAll  = c.textContent.trim() === 'All Lots';
+    const isThis = (f === 'all' && isAll) || c.textContent.trim() === f;
+    c.classList.toggle('active', isThis);
+  });
+}
+
+
+function resetUpload() {
+  pendingLots = null;
+  pendingXlsRates = null;
+  allLots = [];
+  ratesMap = {};
+  document.getElementById('csvCard').classList.remove('ready');
+  document.getElementById('xlsCard').classList.remove('ready');
+  document.getElementById('csvBtnLabel').textContent = 'Choose File';
+  document.getElementById('xlsBtnLabel').textContent = 'Choose File';
+  document.getElementById('uploadSection').style.display = 'flex';
+  document.getElementById('settingsPanel').style.display = 'none';
+  document.getElementById('catSummarySection').style.display = 'none';
+  document.getElementById('summarySection').style.display = 'none';
+  document.getElementById('disclaimerSection').style.display = 'none';
+  activateFilter('all');
+  document.getElementById('lotsWrap').innerHTML = '';
+}
+
+function showMainUI() {
+  document.getElementById('uploadSection').style.display = 'none';
+  document.getElementById('settingsPanel').style.display = 'block';
+  document.getElementById('catSummarySection').style.display = 'block';
+  document.getElementById('summarySection').style.display = 'block';
+  document.getElementById('disclaimerSection').style.display = 'block';
+}
+
+function saveTodayINR() {}
+
+// ── Manual rate override ───────────────────────────────────────────
+function overrideRate(date, val) {
+  const rate = parseFloat(val);
+  if (!isNaN(rate) && rate > 0) {
+    ratesMap[date] = { rate, source: 'manual' };
+    rerender();
+  }
+}
+
+// ── Rate table ─────────────────────────────────────────────────────
+function renderRateTable() {
+  const tbody = document.getElementById('rateTableBody');
+  const uniqueDates = [...new Set(allLots.map(l => l.dateAcquired))].sort();
+  const hasEst = uniqueDates.some(d => (ratesMap[d]?.source || 'est') === 'est');
+  document.getElementById('missingRatesBanner').style.display = hasEst ? '' : 'none';
+
+  tbody.innerHTML = uniqueDates.map(date => {
+    const info = ratesMap[date] || {};
+    const src = info.source || 'est';
+    const isEst = src === 'est';
+    const isLocked = src === 'rbi'; // locked once imported from RBI XLS
+    const rowStyle = isEst ? 'background:#fff8e1;' : '';
+    const manualCell = isLocked
+      ? `<span style="font-size:12px;color:#888">— locked (RBI)</span>`
+      : `<input type="number" value="${info.rate?.toFixed(2)||''}" step="0.01"
+          style="${isEst ? 'border:2px solid #f57c00;background:#fff3e0;font-weight:600;' : ''}width:110px;"
+          onchange="overrideRate('${date}',this.value)"
+          placeholder="${isEst ? '⚠ Enter rate' : 'Override'}">`;
+    return `<tr style="${rowStyle}">
+      <td>${fDate(date)}</td>
+      <td>${info.rate ? '₹' + info.rate.toFixed(4) : '<span style="color:#c62828">—</span>'}</td>
+      <td><span class="source-tag ${src}">${src.toUpperCase()}</span></td>
+      <td>${manualCell}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CSV PARSER — Schwab format
+// ═══════════════════════════════════════════════════════════════════
+function parseSchawbCSV(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const lots = [];
+
+  const esppIdx  = lines.findIndex(l => l.includes('EMPLOYEE STOCK PURCHASE PLAN SHARES'));
+  const eqIdx    = lines.findIndex(l => l.includes('EQUITY AWARD SHARES'));
+
+  // ── ESPP lots ─────────────────────────────────────────────────────
+  if (esppIdx >= 0) {
+    const end = eqIdx > 0 ? eqIdx : lines.length;
+    let i = esppIdx + 2;
+    while (i < end) {
+      const parts = parseCsvLine(lines[i]);
+      if (parts.length >= 8 && isMMDDYYYY(parts[0]) && parts[1] === 'NVDA') {
+        const dateAcquired  = mmddToISO(parts[0]);
+        const purchasePrice = numOf(parts[4]);
+        const sharesAvail   = intOf(parts[7]);
+        const sharesTotal   = intOf(parts[6]);
+
+        // Schwab CSV structure per ESPP lot:
+        //   Line i:   lot summary  (Purchase Date, Symbol, Market Value, ...)
+        //   Line i+1: column header ("Date Holding Period Met,Symbol,Plan Id,...")
+        //   Line i+2: actual detail  (Qualified/date, Symbol, PlanId, SubDate, PurchDate, SubFMV, PurchFMV, PurchPrice)
+        // Detect column-header row by checking if next line contains "Plan Id"
+        let detail = [];
+        let step   = 2;
+        const rawNext = i + 1 < end ? lines[i + 1] : '';
+        if (rawNext.includes('Plan Id')) {
+          // i+1 is col-header, i+2 is actual data
+          detail = i + 2 < end ? parseCsvLine(lines[i + 2]) : [];
+          step   = 3;
+        } else {
+          detail = parseCsvLine(rawNext);
+        }
+
+        // detail layout: [HoldingPeriodMet, Symbol, PlanId, SubDate, PurchDate, SubFMV, PurchFMV, PurchPrice]
+        // Use Purchase FMV (index 6) as capital-gain cost basis (discount already taxed as perquisite)
+        let purchaseFMV = purchasePrice;
+        if (detail.length >= 7) {
+          const fmv = numOf(detail[6]);
+          if (fmv > 0) purchaseFMV = fmv;
+        }
+
+        if (sharesAvail > 0 && dateAcquired) {
+          lots.push(mkLot('ESPP', 'NVDA', dateAcquired, purchaseFMV, purchasePrice, sharesAvail, sharesTotal));
+        }
+        i += step;
+      } else { i++; }
+    }
+  }
+
+  // ── RSU lots from EQUITY AWARD SHARES ─────────────────────────────
+  if (eqIdx >= 0) {
+    const hdrIdx = lines.findIndex((l, idx) => idx > eqIdx && l.startsWith('Award Date,Symbol,Award ID'));
+    if (hdrIdx >= 0) {
+      for (let i = hdrIdx + 1; i < lines.length; i++) {
+        const p = parseCsvLine(lines[i]);
+        if (p.length < 11) continue;
+        const sym      = p[1];
+        const dateAcq  = mmddToISO(p[7]);
+        const acqPrice = numOf(p[8]);
+        const shares   = intOf(p[9]);
+        const avail    = intOf(p[10]);
+        if (!dateAcq || avail <= 0 || !sym || sym === 'Symbol') continue;
+        lots.push(mkLot('RSU', sym, dateAcq, acqPrice, acqPrice, avail, shares));
+      }
+    }
+  }
+
+  return lots;
+}
+
+function mkLot(type, symbol, dateAcquired, acquisitionPrice, purchasePrice, sharesHeld, sharesTotal) {
+  return {
+    type, symbol, dateAcquired, acquisitionPrice, purchasePrice, sharesHeld, sharesTotal,
+    taxCategory: monthsDiff(dateAcquired, TODAY) > 24 ? 'LTCG' : 'STCG',
+    holdingMonths: monthsDiff(dateAcquired, TODAY),
+  };
+}
+
+function parseCsvLine(line) {
+  const result = []; let inQ = false, cur = '';
+  for (const ch of line) {
+    if (ch === '"') { inQ = !inQ; }
+    else if (ch === ',' && !inQ) { result.push(cur.trim()); cur = ''; }
+    else cur += ch;
+  }
+  result.push(cur.trim());
+  return result;
+}
+
+function isMMDDYYYY(s) { return /^\d{2}-\d{2}-\d{4}$/.test(s); }
+function mmddToISO(s) {
+  s = s.replace(/"/g,'').trim();
+  const m = s.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  return m ? `${m[3]}-${m[1]}-${m[2]}` : (/^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null);
+}
+function numOf(s) { return parseFloat((s||'').replace(/[$,]/g,'')) || 0; }
+function intOf(s) { return parseInt((s||'').replace(/[,]/g,'')) || 0; }
+function monthsDiff(d1, d2) {
+  const a = new Date(d1), b = new Date(d2);
+  return (b.getFullYear()-a.getFullYear())*12 + b.getMonth()-a.getMonth();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// FORMATTERS
+// ═══════════════════════════════════════════════════════════════════
+function fUSD(v, c=false) {
+  const abs = Math.abs(v);
+  if (c && abs >= 1000) return '$'+(abs/1000).toFixed(2)+'K';
+  return '$'+abs.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function fINR(v, c=false) {
+  const abs = Math.abs(v);
+  if (c && abs >= 10000000) return '₹'+(abs/10000000).toFixed(2)+'Cr';
+  if (c && abs >= 100000)  return '₹'+(abs/100000).toFixed(2)+'L';
+  if (c && abs >= 1000)    return '₹'+(abs/1000).toFixed(1)+'K';
+  return '₹'+Math.round(abs).toLocaleString('en-IN');
+}
+function fDate(d) {
+  return new Date(d+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
+function fHolding(months) {
+  if (months >= 12) { const y=Math.floor(months/12),m=months%12; return m?`${y}y ${m}mo`:`${y}y`; }
+  return months+' mo';
+}
+function signStr(v) { return v >= 0 ? '+' : '−'; }
+
+// Date when a lot crosses 24-month threshold → LTCG
+function ltcgDate(dateAcquired) {
+  const d = new Date(dateAcquired + 'T00:00:00');
+  d.setMonth(d.getMonth() + 24);
+  return d.toISOString().split('T')[0];
+}
+// Days from TODAY to a future isoDate (positive = future)
+function daysUntil(isoDate) {
+  return Math.ceil((new Date(isoDate + 'T00:00:00') - new Date(TODAY + 'T00:00:00')) / 86400000);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// RSU / ESPP CATEGORY SUMMARY
+// ═══════════════════════════════════════════════════════════════════
+function renderCatSummary(currentPrice, todayINR, ltcgRate, stcgRate) {
+  const categories = ['RSU', 'ESPP'];
+  const grid = document.getElementById('catSummaryGrid');
+
+  grid.innerHTML = categories.map(cat => {
+    const lots = allLots.filter(l => l.type === cat);
+    if (!lots.length) return '';
+
+    let shares = 0, costUSD = 0, costINR = 0, valueUSD = 0, valueINR = 0, taxEst = 0;
+    lots.forEach(lot => {
+      const pRate   = ratesMap[lot.dateAcquired]?.rate || todayINR;
+      const taxRate = lot.taxCategory === 'LTCG' ? ltcgRate : stcgRate;
+      shares   += lot.sharesHeld;
+      costUSD  += lot.acquisitionPrice * lot.sharesHeld;
+      costINR  += lot.acquisitionPrice * lot.sharesHeld * pRate;
+      valueUSD += currentPrice * lot.sharesHeld;
+      valueINR += currentPrice * lot.sharesHeld * todayINR;
+      const gainBase = currency === 'INR'
+        ? Math.max(currentPrice * lot.sharesHeld * todayINR - lot.acquisitionPrice * lot.sharesHeld * pRate, 0)
+        : Math.max((currentPrice - lot.acquisitionPrice) * lot.sharesHeld, 0);
+      taxEst += gainBase * taxRate;
+    });
+
+    const gainUSD    = valueUSD - costUSD;
+    const gainINR    = valueINR - costINR;
+    const gainPctUSD = costUSD > 0 ? gainUSD / costUSD * 100 : 0;
+    const gainPctINR = costINR > 0 ? gainINR / costINR * 100 : 0;
+    const gPos       = gainUSD >= 0;
+
+    const showINR = currency === 'INR';
+
+    return `<div class="cat-card">
+      <div class="cat-card-header">
+        <div class="cat-icon ${cat.toLowerCase()}">${cat}</div>
+        <div class="cat-title">${cat === 'RSU' ? 'Restricted Stock Units' : 'Employee Stock Purchase Plan'}</div>
+        <div class="cat-shares">${shares} shares · ${lots.length} lots</div>
+      </div>
+      <div class="cat-rows">
+        <div class="cat-row">
+          <div class="cr-label">Total Invested</div>
+          <div class="cr-val">${showINR ? fINR(costINR,true) : fUSD(costUSD,true)}</div>
+          <div class="cr-sub">${showINR ? fUSD(costUSD,true)+' × avg buy rate' : fINR(costINR,true)+' at buy rates'}</div>
+        </div>
+        <div class="cat-row">
+          <div class="cr-label">Current Value</div>
+          <div class="cr-val">${showINR ? fINR(valueINR,true) : fUSD(valueUSD,true)}</div>
+          <div class="cr-sub">${showINR ? fUSD(valueUSD,true)+' × ₹'+todayINR.toFixed(2) : fINR(valueINR,true)+' at ₹'+todayINR.toFixed(2)}</div>
+        </div>
+        <div class="cat-row gain-row">
+          <div>
+            <div class="cr-label">Total Gain</div>
+            <div class="cr-val ${gPos?'pos':'neg'}">${signStr(showINR?gainINR:gainUSD)}${showINR?fINR(Math.abs(gainINR),true):fUSD(Math.abs(gainUSD),true)} (${(showINR?gainPctINR:gainPctUSD).toFixed(1)}%)</div>
+          </div>
+          <div style="text-align:right">
+            <div class="cr-label">Est. Tax</div>
+            <div class="cr-val" style="color:#e65100">${showINR?fINR(taxEst,true):fUSD(taxEst,true)}</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════════════════════
+function rerender() {
+  if (!allLots.length) return;
+
+  const currentPrice = parseFloat(document.getElementById('currentPrice').value) || 0;
+  const todayINR     = parseFloat(document.getElementById('todayINR').value) || 84.5;
+  const ltcgRate     = parseFloat(document.getElementById('ltcgRate').value) / 100;
+  const stcgRate     = computeSTCGRate();  // dynamic from slab
+
+  // Filter
+  let filtered = allLots;
+  if (activeFilter === 'RSU')  filtered = allLots.filter(l => l.type === 'RSU');
+  if (activeFilter === 'ESPP') filtered = allLots.filter(l => l.type === 'ESPP');
+  if (activeFilter === 'LTCG') filtered = allLots.filter(l => l.taxCategory === 'LTCG');
+  if (activeFilter === 'STCG') filtered = allLots.filter(l => l.taxCategory === 'STCG');
+  filtered = [...filtered].sort((a,b) => new Date(b.dateAcquired)-new Date(a.dateAcquired));
+
+  // ── Summary ──────────────────────────────────────────────────────
+  let totVal=0, totGain=0, totTax=0, totShares=0, totValINR=0, totGainINR=0, totCostINR=0;
+  allLots.forEach(lot => {
+    const taxRate = lot.taxCategory === 'LTCG' ? ltcgRate : stcgRate;
+    const pRate   = ratesMap[lot.dateAcquired]?.rate || todayINR;
+    // USD
+    const val     = currentPrice * lot.sharesHeld;
+    const gain    = (currentPrice - lot.acquisitionPrice) * lot.sharesHeld;
+    // INR: cost uses purchase-day rate, value uses today's rate
+    const costINR_ = lot.acquisitionPrice * lot.sharesHeld * pRate;
+    const valINR_  = currentPrice * lot.sharesHeld * todayINR;
+    const gainINR_ = valINR_ - costINR_;
+    const taxBase  = currency === 'INR' ? Math.max(gainINR_, 0) : Math.max(gain, 0);
+    totVal    += val;
+    totGain   += gain;
+    totShares += lot.sharesHeld;
+    totValINR += valINR_;
+    totGainINR+= gainINR_;
+    totCostINR+= costINR_;
+    totTax    += taxBase * taxRate;
+  });
+
+  const totGainPctINR = totCostINR > 0 ? totGainINR / totCostINR * 100 : 0;
+  const totGainPctUSD = (totVal - totGain) > 0 ? totGain / (totVal - totGain) * 100 : 0;
+
+  const sg = document.getElementById('summaryGrid');
+  if (currency === 'USD') {
+    sg.innerHTML = `
+      <div class="sum-card"><div class="slabel">Total Shares</div><div class="sval">${totShares.toLocaleString()}</div><div class="ssub">${allLots.length} lots</div></div>
+      <div class="sum-card"><div class="slabel">Portfolio Value</div><div class="sval">${fUSD(totVal,true)}</div><div class="ssub">@ $${currentPrice.toFixed(2)}/sh</div></div>
+      <div class="sum-card ${totGain>=0?'green':'red'}"><div class="slabel">Total USD Gain</div><div class="sval">${signStr(totGain)}${fUSD(totGain,true)}</div><div class="ssub">${totGainPctUSD.toFixed(1)}% return</div></div>
+      <div class="sum-card orange"><div class="slabel">Est. Tax Liability</div><div class="sval">${fUSD(totTax,true)}</div><div class="ssub">LTCG ${(ltcgRate*100).toFixed(1)}% / STCG slab</div></div>`;
+  } else {
+    sg.innerHTML = `
+      <div class="sum-card"><div class="slabel">Total Shares</div><div class="sval">${totShares.toLocaleString()}</div><div class="ssub">₹${todayINR.toFixed(2)}/$ today</div></div>
+      <div class="sum-card"><div class="slabel">Portfolio Value (₹)</div><div class="sval">${fINR(totValINR,true)}</div><div class="ssub">shares × $${currentPrice.toFixed(2)} × ₹${todayINR.toFixed(2)}</div></div>
+      <div class="sum-card ${totGainINR>=0?'green':'red'}"><div class="slabel">Total INR Gain</div><div class="sval">${signStr(totGainINR)}${fINR(totGainINR,true)}</div><div class="ssub">${totGainPctINR.toFixed(1)}% on ₹ cost basis</div></div>
+      <div class="sum-card orange"><div class="slabel">Est. Tax (₹)</div><div class="sval">${fINR(totTax,true)}</div><div class="ssub">LTCG ${(ltcgRate*100).toFixed(1)}% / STCG slab</div></div>`;
+  }
+
+  document.getElementById('sectionLabel').textContent =
+    `${filtered.length} lot${filtered.length!==1?'s':''} · ${activeFilter==='all'?'All Holdings':activeFilter}`;
+
+  // ── RSU / ESPP category summary ───────────────────────────────────
+  renderCatSummary(currentPrice, todayINR, ltcgRate, stcgRate);
+
+  // ── Lot cards ─────────────────────────────────────────────────────
+  const wrap = document.getElementById('lotsWrap');
+  if (!filtered.length) { wrap.innerHTML = '<div class="empty-state"><h3>No lots match the filter</h3></div>'; return; }
+
+  wrap.innerHTML = filtered.map(lot => { try {
+    const taxRate  = lot.taxCategory === 'LTCG' ? ltcgRate : stcgRate;
+    const pRate    = ratesMap[lot.dateAcquired]?.rate || todayINR;
+    const src      = ratesMap[lot.dateAcquired]?.source || 'est';
+    const val      = currentPrice * lot.sharesHeld;
+    const gainUSD  = (currentPrice - lot.acquisitionPrice) * lot.sharesHeld;
+    const gainPct  = lot.acquisitionPrice > 0 ? gainUSD / (lot.acquisitionPrice * lot.sharesHeld) * 100 : 0;
+
+    // INR calculations
+    const costINR       = lot.acquisitionPrice * lot.sharesHeld * pRate;
+    const valINR        = val * todayINR;
+    const gainINR       = valINR - costINR;
+    const gainINR_stock = gainUSD * todayINR;
+    const gainINR_forex = lot.acquisitionPrice * lot.sharesHeld * (todayINR - pRate);
+    const fxChangePct   = pRate > 0 ? (todayINR - pRate) / pRate * 100 : 0;
+
+    const taxBase = currency === 'INR' ? Math.max(gainINR, 0) : Math.max(gainUSD, 0);
+    const taxAmt  = taxBase * taxRate;
+
+    // STCG → LTCG projection
+    const isSTCG = lot.taxCategory === 'STCG';
+    const ltcgConvert = isSTCG ? ltcgDate(lot.dateAcquired) : null;
+    const daysLeft    = isSTCG ? daysUntil(ltcgConvert) : 0;
+    const taxAtLTCG   = taxBase * ltcgRate;
+    const taxSaving   = taxAmt - taxAtLTCG;
+
+    // Shared: forex rate row (shown in BOTH modes)
+    // RBI-sourced rates are locked (read-only); EST/manual rates are editable
+    const isLocked = src === 'rbi';
+    const rateDisplay = isLocked
+      ? `<span style="font-size:15px;font-weight:700">₹${pRate.toFixed(2)}</span>`
+      : `<input type="number" step="0.01" value="${pRate.toFixed(2)}"
+          style="width:80px;font-size:14px;font-weight:700;border:1px solid ${src==='est'?'#f57c00':'#ddd'};border-radius:5px;padding:2px 5px;color:${src==='est'?'#e65100':'inherit'};background:${src==='est'?'#fff8f0':'#fff'}"
+          onchange="overrideRate('${lot.dateAcquired}',this.value)"
+          title="Edit to correct the USD/INR rate for this date">`;
+    const fxRow = `
+      <div class="fx-row">
+        <div class="fx-item">
+          <div class="fx-label">USD/INR at Purchase</div>
+          <div class="fx-val" style="display:flex;align-items:center;gap:4px">
+            ${rateDisplay}
+            <span class="fx-src ${src}">${src.toUpperCase()}</span>
+          </div>
+        </div>
+        <div class="fx-arrow">→</div>
+        <div class="fx-item">
+          <div class="fx-label">USD/INR Today</div>
+          <div class="fx-val">₹${todayINR.toFixed(2)}</div>
+        </div>
+        <div class="fx-item">
+          <div class="fx-label">Forex Gain (₹)</div>
+          <div class="fx-val ${gainINR_forex>=0?'pos':'neg'}">${signStr(gainINR_forex)}${fINR(Math.abs(gainINR_forex),true)} (${signStr(fxChangePct)}${Math.abs(fxChangePct).toFixed(1)}%)</div>
+        </div>
+        <div class="fx-item">
+          <div class="fx-label">Stock Gain (₹)</div>
+          <div class="fx-val ${gainINR_stock>=0?'pos':'neg'}">${signStr(gainINR_stock)}${fINR(Math.abs(gainINR_stock),true)}</div>
+        </div>
+      </div>`;
+
+    // STCG → LTCG banner
+    const ltcgBanner = isSTCG && daysLeft > 0 ? `
+      <div class="ltcg-banner">
+        <div class="ltcg-banner-top">
+          <span class="clock">⏳</span>
+          <span>Converts to LTCG on <strong>${fDate(ltcgConvert)}</strong></span>
+          <span class="days-badge">${daysLeft} day${daysLeft!==1?'s':''} away</span>
+        </div>
+        <div class="ltcg-tax-compare">
+          <div class="tc-box">
+            <div class="tc-label">STCG Tax Now</div>
+            <div class="tc-val stcg-col">${currency==='INR'?fINR(taxAmt,true):fUSD(taxAmt,true)}</div>
+            <div style="font-size:10px;color:#aaa">${(taxRate*100).toFixed(0)}% slab</div>
+          </div>
+          <div class="tc-arrow">→</div>
+          <div class="tc-box">
+            <div class="tc-label">LTCG Tax After</div>
+            <div class="tc-val ltcg-col">${currency==='INR'?fINR(taxAtLTCG,true):fUSD(taxAtLTCG,true)}</div>
+            <div style="font-size:10px;color:#aaa">${(ltcgRate*100).toFixed(1)}%</div>
+          </div>
+          <div class="tc-saving">
+            <div class="tc-label">Tax Saved by Waiting</div>
+            <div class="tc-val">${currency==='INR'?fINR(taxSaving,true):fUSD(taxSaving,true)}</div>
+          </div>
+        </div>
+      </div>` : (isSTCG && daysLeft <= 0 ? `
+      <div class="ltcg-banner" style="background:#e8f5e9;border-color:#c8e6c9">
+        <div class="ltcg-banner-top">
+          <span>✅ This lot <strong>qualifies for LTCG</strong> today — consider selling to get ${(ltcgRate*100).toFixed(1)}% rate</span>
+        </div>
+      </div>` : '');
+
+    const gPos      = gainUSD >= 0;
+    const gINRPos   = gainINR >= 0;
+    // INR gain % uses INR cost as base (not USD cost)
+    const gainPctINR = costINR > 0 ? gainINR / costINR * 100 : 0;
+
+    // Per-share INR values
+    const vestPriceINR    = lot.acquisitionPrice * pRate;   // $X.XX × ₹Y.YY
+    const currentPriceINR = currentPrice * todayINR;        // $X.XX × ₹Y.YY
+    // Total value formula: shares × currentPrice($) × todayINR
+    // valINR = lot.sharesHeld × currentPrice × todayINR  (already computed above)
+
+    if (currency === 'USD') {
+      return `<div class="lot-card">
+        <div class="lot-top">
+          <div class="lot-top-left">
+            <span class="lot-date">${fDate(lot.dateAcquired)}</span>
+            <span class="badge ${lot.taxCategory.toLowerCase()}">${lot.taxCategory} · ${fHolding(lot.holdingMonths)}</span>
+            <span class="badge ${lot.type.toLowerCase()}">${lot.type}</span>
+          </div>
+          <div class="schwab-pill"><div class="schwab-dot">CS</div><div class="schwab-name">CHARLES<br>SCHWAB</div></div>
+        </div>
+        <div class="lot-grid">
+          <div><div class="lf-label">Shares</div><div class="lf-val">${lot.sharesHeld}</div></div>
+          <div><div class="lf-label">Vest Price</div><div class="lf-val">$${lot.acquisitionPrice.toFixed(2)}</div><div class="lf-sub">₹${vestPriceINR.toFixed(0)} at buy rate</div></div>
+          <div><div class="lf-label">Current Price</div><div class="lf-val">$${currentPrice.toFixed(2)}</div><div class="lf-sub">₹${currentPriceINR.toFixed(0)} at today rate</div></div>
+          <div><div class="lf-label">Value</div><div class="lf-val">${fUSD(val,true)}</div><div class="lf-sub">${fINR(valINR,true)}</div></div>
+        </div>
+        <div class="lot-footer">
+          <div class="gain-line ${gPos?'pos':'neg'}">${signStr(gainUSD)}${fUSD(Math.abs(gainUSD))} (${signStr(gainPct)}${Math.abs(gainPct).toFixed(1)}%)</div>
+          <div class="tax-line">Tax: ${fUSD(taxAmt)} <span style="color:#aaa;font-size:11px">(${(taxRate*100).toFixed(1)}%)</span></div>
+        </div>
+        ${fxRow}
+        ${ltcgBanner}
+      </div>`;
+    } else {
+      return `<div class="lot-card">
+        <div class="lot-top">
+          <div class="lot-top-left">
+            <span class="lot-date">${fDate(lot.dateAcquired)}</span>
+            <span class="badge ${lot.taxCategory.toLowerCase()}">${lot.taxCategory} · ${fHolding(lot.holdingMonths)}</span>
+            <span class="badge ${lot.type.toLowerCase()}">${lot.type}</span>
+          </div>
+          <div class="schwab-pill"><div class="schwab-dot">CS</div><div class="schwab-name">CHARLES<br>SCHWAB</div></div>
+        </div>
+        <div class="lot-grid">
+          <div><div class="lf-label">Shares</div><div class="lf-val">${lot.sharesHeld}</div></div>
+          <div>
+            <div class="lf-label">Vest Price (₹)</div>
+            <div class="lf-val">${fINR(vestPriceINR,true)}</div>
+            <div class="lf-sub">$${lot.acquisitionPrice.toFixed(2)} × ₹${pRate.toFixed(2)}</div>
+          </div>
+          <div>
+            <div class="lf-label">Current Price (₹)</div>
+            <div class="lf-val">${fINR(currentPriceINR,true)}</div>
+            <div class="lf-sub">$${currentPrice.toFixed(2)} × ₹${todayINR.toFixed(2)}</div>
+          </div>
+          <div>
+            <div class="lf-label">Total Value (₹)</div>
+            <div class="lf-val">${fINR(valINR,true)}</div>
+            <div class="lf-sub">${lot.sharesHeld} × ₹${currentPriceINR.toFixed(0)}</div>
+          </div>
+        </div>
+        <div class="lot-footer">
+          <div class="gain-line ${gINRPos?'pos':'neg'}">${signStr(gainINR)}${fINR(Math.abs(gainINR),true)} (${signStr(gainPctINR)}${Math.abs(gainPctINR).toFixed(1)}%)</div>
+          <div class="tax-line">Tax: ${fINR(taxAmt)} <span style="color:#aaa;font-size:11px">(${(taxRate*100).toFixed(1)}%)</span></div>
+        </div>
+        ${fxRow}
+        ${ltcgBanner}
+      </div>`;
+    }
+  } catch(e) { console.error('Lot render error', lot, e); return ''; } }).join('');
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('uploadSection').style.display = '';
+});
+</script>
+</body>
+</html>
