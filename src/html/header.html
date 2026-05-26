@@ -1,8 +1,13 @@
 <!-- HEADER -->
-<div class="header">
-  <div class="header-title">📊 Tax Analyzer</div>
-  <div class="currency-toggle" id="currencyToggle" style="display:none">
-    <button class="currency-btn active" onclick="setCurrency('USD')">$ USD</button>
-    <button class="currency-btn" onclick="setCurrency('INR')">₹ INR</button>
+<header class="header">
+  <div class="header-inner">
+    <div class="header-brand">
+      <div class="header-title">Tax Analyzer</div>
+      <div class="header-tagline">Broker exports · local only</div>
+    </div>
+    <div class="currency-toggle" id="currencyToggle" style="display:none" role="group" aria-label="Display currency">
+      <button type="button" class="currency-btn active" onclick="setCurrency('USD')">USD</button>
+      <button type="button" class="currency-btn" onclick="setCurrency('INR')">INR</button>
+    </div>
   </div>
-</div>
+</header>

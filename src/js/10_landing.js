@@ -1,8 +1,91 @@
 // ═══════════════════════════════════════════════════════════════════
 // LANDING PANEL — MARKET & PLATFORM SELECTION
 // ═══════════════════════════════════════════════════════════════════
-const selectedMarkets = new Set(['us']);
+const selectedMarkets = new Set();
 const activePlatforms = new Set();
+let wizCurrentStep = 1;
+
+// Show only the active tab panel; mark steps done/active accordingly.
+// Does NOT validate — use switchToStep() for user-initiated navigation.
+function advanceWizard(toStep) {
+  wizCurrentStep = toStep;
+  for (let n = 1; n <= 4; n++) {
+    const step  = document.getElementById('wizStep' + n);
+    const panel = document.getElementById('wizardPanel' + n);
+    if (step) {
+      step.classList.toggle('is-active', n === toStep);
+      step.classList.toggle('is-done',   n < toStep);
+    }
+    if (panel) panel.classList.toggle('is-visible', n === toStep);
+  }
+  hideWizardError();
+}
+
+// User-initiated tab click — validates before switching.
+function switchToStep(n) {
+  if (n === wizCurrentStep) return;
+
+  // Going backward is always free
+  if (n < wizCurrentStep) {
+    advanceWizard(n);
+    return;
+  }
+
+  // Going forward — check prerequisites for each step being crossed
+  if (n >= 2 && selectedMarkets.size === 0) {
+    showWizardError('Please select at least one market before continuing.');
+    return;
+  }
+  if (n >= 3) {
+    if (activePlatforms.size === 0) {
+      showWizardError('Please select at least one platform before continuing.');
+      return;
+    }
+    const warn = getPlatformWarning();
+    if (warn) { showWizardError(warn); return; }
+  }
+
+  // Recompute derived state from current selections before showing the target panel,
+  // so any changes made on a previous step are always reflected.
+  if (n === 2) {
+    // Refresh platform card visibility based on current market selection
+    const showUs    = selectedMarkets.has('us');
+    const showIndia = selectedMarkets.has('india');
+    document.getElementById('pfCard_schwab').style.display   = showUs    ? '' : 'none';
+    document.getElementById('pfCard_indmoney').style.display = '';
+    document.getElementById('pfCard_zerodha').style.display  = showIndia ? '' : 'none';
+    document.getElementById('pfCard_groww').style.display    = showIndia ? '' : 'none';
+    const pfGrid = document.getElementById('pfGrid');
+    const pfHint = document.getElementById('pfGridHint');
+    if (pfGrid) pfGrid.style.display = 'flex';
+    if (pfHint) pfHint.style.display = 'none';
+    renderPlatformCards();
+  }
+  if (n >= 3) {
+    updateUploads();
+  }
+  if (n >= 4) {
+    updateAnalyzeAllBtn();
+    if (document.getElementById('analyzeAllBtn').disabled) {
+      showWizardError('Please upload files for your selected platforms first.');
+      return;
+    }
+  }
+
+  advanceWizard(n);
+}
+
+function showWizardError(msg) {
+  const el = document.getElementById('wizardError');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = '';
+}
+
+function hideWizardError() {
+  const el = document.getElementById('wizardError');
+  if (el) el.style.display = 'none';
+}
 
 function toggleMarket(m) {
   if (selectedMarkets.has(m)) {
@@ -12,6 +95,12 @@ function toggleMarket(m) {
     selectedMarkets.add(m);
   }
   renderMarketCards();
+  // show/hide pfGrid based on market selection
+  const pfGrid = document.getElementById('pfGrid');
+  const pfHint = document.getElementById('pfGridHint');
+  const anyMkt = selectedMarkets.size > 0;
+  if (pfGrid) pfGrid.style.display = anyMkt ? 'flex' : 'none';
+  if (pfHint) pfHint.style.display = anyMkt ? 'none' : '';
   const showUs    = selectedMarkets.has('us');
   const showIndia = selectedMarkets.has('india');
   document.getElementById('pfCard_schwab').style.display   = showUs    ? '' : 'none';
@@ -64,7 +153,6 @@ function updateUploads() {
     const block = document.getElementById('pfupBlock_' + p);
     if (block) block.style.display = activePlatforms.has(p) ? 'block' : 'none';
   }
-  document.getElementById('analyzeAllRow').style.display = anySelected ? 'flex' : 'none';
   if (activePlatforms.has('indmoney')) syncImSubTabs();
 }
 
@@ -108,6 +196,11 @@ function togglePfup(p) {
 }
 
 function runAnalysisAll() {
+  // Hide all platform result panels first so stale results from a previous run don't bleed through
+  for (const p of ['schwab', 'indmoney', 'zerodha', 'groww']) {
+    document.getElementById('pra_' + p).style.display = 'none';
+  }
+
   let hasResults = false;
 
   if (activePlatforms.has('schwab') && allLots.length > 0) {

@@ -1,86 +1,117 @@
 <!-- LANDING PANEL -->
 <div id="landingPanel">
-  <!-- Step 1: Market -->
-  <div class="lp-section">
-    <div class="lp-step-label">Which market are you reporting? <span style="font-size:11px;color:#bbb;font-weight:400;text-transform:none;letter-spacing:0">choose all that apply</span></div>
+  <div class="page-hero">
+    <h1>Estimate capital gains from your broker data</h1>
+    <p>Upload statements from Schwab, IndMoney, Zerodha, or Groww. Parsing and tax math run entirely in your browser — nothing is uploaded to a server.</p>
+  </div>
+
+  <nav class="wizard-nav" aria-label="Setup steps">
+    <div class="wizard-step is-active" id="wizStep1" onclick="switchToStep(1)" role="button" tabindex="0"><span class="wizard-num">1</span><span>Markets</span></div>
+    <div class="wizard-step" id="wizStep2" onclick="switchToStep(2)" role="button" tabindex="0"><span class="wizard-num">2</span><span>Platforms</span></div>
+    <div class="wizard-step" id="wizStep3" onclick="switchToStep(3)" role="button" tabindex="0"><span class="wizard-num">3</span><span>Uploads</span></div>
+    <div class="wizard-step" id="wizStep4" onclick="switchToStep(4)" role="button" tabindex="0"><span class="wizard-num">4</span><span>Analyze</span></div>
+  </nav>
+  <div id="wizardError" style="display:none;margin:10px 0 0;padding:10px 14px;background:#fef2f2;border:1px solid #fca5a5;border-radius:6px;font-size:.8125rem;color:#b91c1c;line-height:1.5"></div>
+
+  <div id="wizardPanel1" class="wizard-panel is-visible">
+  <section class="lp-section">
+    <div class="lp-step-label">Step 1 · <span>choose all that apply</span></div>
+    <h2 class="lp-h2">Markets you are reporting</h2>
     <div class="pf-grid" id="mktGrid">
-      <div class="pf-card selected" id="mkCard_us" onclick="toggleMarket('us')">
-        <div class="pf-card-top"><span class="pf-card-icon">🇺🇸</span><span class="pf-check" id="mkChk_us">✓</span></div>
-        <div class="pf-card-name">US Market</div>
+      <div class="pf-card" id="mkCard_us" onclick="toggleMarket('us')" role="button" tabindex="0">
+        <div class="pf-card-top"><span class="pf-card-icon mkt-us" aria-hidden="true">🇺🇸</span><span class="pf-check" id="mkChk_us"></span></div>
+        <div class="pf-card-name">United States</div>
         <div class="pf-card-sub">Charles Schwab<br>IndMoney (US)</div>
       </div>
-      <div class="pf-card" id="mkCard_india" onclick="toggleMarket('india')">
-        <div class="pf-card-top"><span class="pf-card-icon">🇮🇳</span><span class="pf-check" id="mkChk_india"></span></div>
-        <div class="pf-card-name">India Market</div>
+      <div class="pf-card" id="mkCard_india" onclick="toggleMarket('india')" role="button" tabindex="0">
+        <div class="pf-card-top"><span class="pf-card-icon mkt-in" aria-hidden="true">🇮🇳</span><span class="pf-check" id="mkChk_india"></span></div>
+        <div class="pf-card-name">India</div>
         <div class="pf-card-sub">Zerodha, Groww<br>IndMoney (India)</div>
       </div>
     </div>
+    <div class="wizard-next-row">
+      <button type="button" class="wizard-next-btn" onclick="switchToStep(2)">Next: Choose Platforms →</button>
+    </div>
+  </section>
   </div>
 
-  <!-- Step 2: Platforms -->
-  <div class="lp-section" style="margin-top:12px">
-    <div class="lp-step-label">Select platform(s) <span style="font-size:11px;color:#bbb;font-weight:400;text-transform:none;letter-spacing:0">choose all that apply</span></div>
-    <div class="pf-grid" id="pfGrid">
-      <div class="pf-card" id="pfCard_schwab" data-market="us" onclick="togglePlatform('schwab')">
-        <div class="pf-card-top"><span class="pf-card-icon">📈</span><span class="pf-check" id="pfChk_schwab"></span></div>
+  <div id="wizardPanel2" class="wizard-panel">
+  <section class="lp-section">
+    <div class="lp-step-label">Step 2 · <span>choose all that apply</span></div>
+    <h2 class="lp-h2">Brokers and platforms</h2>
+    <p id="pfGridHint" class="wizard-hint" style="font-size:.875rem;color:var(--muted);margin:0 0 12px;line-height:1.5">Select at least one market in step 1 to see brokers.</p>
+    <div class="pf-grid" id="pfGrid" style="display:none">
+      <div class="pf-card" id="pfCard_schwab" data-market="us" onclick="togglePlatform('schwab')" role="button" tabindex="0">
+        <div class="pf-card-top"><span class="pf-card-icon">US</span><span class="pf-check" id="pfChk_schwab"></span></div>
         <div class="pf-card-name">Charles Schwab</div>
         <div class="pf-card-sub">US equity awards<br>RSU / ESPP</div>
       </div>
-      <div class="pf-card" id="pfCard_indmoney" data-market="both" onclick="togglePlatform('indmoney')">
-        <div class="pf-card-top"><span class="pf-card-icon">💹</span><span class="pf-check" id="pfChk_indmoney"></span></div>
+      <div class="pf-card" id="pfCard_indmoney" data-market="both" onclick="togglePlatform('indmoney')" role="button" tabindex="0">
+        <div class="pf-card-top"><span class="pf-card-icon">US · IN</span><span class="pf-check" id="pfChk_indmoney"></span></div>
         <div class="pf-card-name">IndMoney</div>
         <div class="pf-card-sub">US stocks &amp; India<br>EQ / F&amp;O / MF</div>
       </div>
-      <div class="pf-card" id="pfCard_zerodha" data-market="india" onclick="togglePlatform('zerodha')" style="display:none">
-        <div class="pf-card-top"><span class="pf-card-icon">🏦</span><span class="pf-check" id="pfChk_zerodha"></span></div>
+      <div class="pf-card" id="pfCard_zerodha" data-market="india" onclick="togglePlatform('zerodha')" style="display:none" role="button" tabindex="0">
+        <div class="pf-card-top"><span class="pf-card-icon">IN</span><span class="pf-check" id="pfChk_zerodha"></span></div>
         <div class="pf-card-name">Zerodha</div>
         <div class="pf-card-sub">India EQ / F&amp;O / MF</div>
       </div>
-      <div class="pf-card" id="pfCard_groww" data-market="india" onclick="togglePlatform('groww')" style="display:none">
-        <div class="pf-card-top"><span class="pf-card-icon">🌱</span><span class="pf-check" id="pfChk_groww"></span></div>
+      <div class="pf-card" id="pfCard_groww" data-market="india" onclick="togglePlatform('groww')" style="display:none" role="button" tabindex="0">
+        <div class="pf-card-top"><span class="pf-card-icon">IN</span><span class="pf-check" id="pfChk_groww"></span></div>
         <div class="pf-card-name">Groww</div>
         <div class="pf-card-sub">India EQ / F&amp;O / MF</div>
       </div>
     </div>
-    <div id="platformWarning" style="display:none;margin-top:10px;padding:8px 12px;background:#fff3e0;border:1px solid #ffb74d;border-radius:6px;font-size:13px;color:#e65100"></div>
+    <div id="platformWarning"></div>
+    <div class="wizard-next-row">
+      <button type="button" class="wizard-back-btn" onclick="switchToStep(1)">← Back</button>
+      <button type="button" class="wizard-next-btn" onclick="switchToStep(3)">Next: Upload Files →</button>
+    </div>
+  </section>
   </div>
 
-  <!-- Step 3: Upload sections per selected platform -->
-  <div id="pfUploads" style="display:none;flex-direction:column;gap:12px;margin:12px 20px 0">
+  <div id="wizardPanel3" class="wizard-panel">
+  <section class="lp-section" id="step-uploads-wrap">
+    <div class="lp-step-label">Step 3</div>
+    <h2 class="lp-h2">Upload statements</h2>
+  <div id="pfUploads" style="display:none;flex-direction:column;gap:12px;margin:0">
 
     <!-- Charles Schwab -->
     <div class="pfup-block" id="pfupBlock_schwab" style="display:none">
-      <div class="pfup-header" onclick="togglePfup('schwab')"><span>📈 Charles Schwab — Upload Files</span><span style="display:flex;align-items:center;gap:8px"><span class="pfup-status" id="pfupStatus_schwab"></span><span class="pfup-toggle" id="pfupToggle_schwab">▼</span></span></div>
+      <div class="pfup-header" onclick="togglePfup('schwab')">
+        <span>Charles Schwab</span>
+        <span style="display:flex;align-items:center;gap:8px"><span class="pfup-status" id="pfupStatus_schwab"></span><span class="pfup-toggle" id="pfupToggle_schwab">▼</span></span>
+      </div>
       <div class="pfup-body" id="pfupBody_schwab">
-      <div class="upload-section" style="margin:0;border-radius:0;padding:20px;gap:20px;box-shadow:none">
+      <div class="upload-section">
         <div class="upload-card" id="csvCard" onclick="document.getElementById('csvFile').click()">
-          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          <h3>Schwab Equity CSV</h3>
-          <p>EquityAwardsCenter_EquityDetails_*.csv</p>
-          <div class="upload-hint" style="font-size:11.5px;color:#555;line-height:1.6;text-align:left;background:#f0f4ff;border-radius:6px;padding:8px 10px;margin-top:4px">
-            <strong>How to download:</strong><br>
-            1. <a href="https://client.schwab.com/clientapps/accounts/summary/" target="_blank" onclick="event.stopPropagation()" style="color:#1565c0;font-weight:600">Log in to Schwab ↗</a><br>
-            2. Go to <strong>Equity Awards</strong><br>
-            3. Click <strong>View Equity Details</strong><br>
-            4. Click <strong>Show All Historical Awards</strong> (left side)<br>
-            5. Click <strong>Download CSV</strong> (top right)
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <div>
+            <h3>Schwab equity CSV</h3>
+            <p>EquityAwardsCenter_EquityDetails_*.csv · required</p>
+            <details class="help-details" onclick="event.stopPropagation()">
+              <summary>How to download from Schwab</summary>
+              <div class="help-panel">
+                <a href="https://client.schwab.com/clientapps/accounts/summary/" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">Log in to Schwab</a>, then Equity Awards → View Equity Details → Show All Historical Awards → Download CSV.
+              </div>
+            </details>
+            <div class="upload-btn-inner" id="csvBtnLabel">Choose file</div>
           </div>
-          <div class="upload-btn-inner" id="csvBtnLabel">Choose File</div>
         </div>
-        <div class="upload-plus">+</div>
         <div class="upload-card" id="xlsCard" onclick="document.getElementById('xlsFile').click()">
-          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          <h3>RBI USD/INR Rate File</h3>
-          <p>Reference Rate Archive (.xls)</p>
-          <div class="upload-hint" style="font-size:11.5px;color:#555;line-height:1.6;text-align:left;background:#f0f4ff;border-radius:6px;padding:8px 10px;margin-top:4px">
-            <strong>How to download:</strong><br>
-            1. Click below to open RBI archive<br>
-            2. Set <em>From Date</em> to <strong>01/01/2019</strong> (or earliest lot date)<br>
-            3. Set <em>To Date</em> to today<br>
-            4. Click <strong>Search</strong> → then <strong>Download</strong><br>
-            <a href="https://www.rbi.org.in/scripts/referenceratearchive.aspx" target="_blank" onclick="event.stopPropagation()" style="display:inline-block;margin-top:6px;background:#1565c0;color:#fff;padding:4px 12px;border-radius:5px;font-weight:600;font-size:12px;text-decoration:none">Open RBI Archive ↗</a>
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <div>
+            <h3>RBI USD/INR archive</h3>
+            <p>Reference Rate Archive (.xls) · required for INR view</p>
+            <details class="help-details" onclick="event.stopPropagation()">
+              <summary>How to download from RBI</summary>
+              <div class="help-panel">
+                Set <em>From</em> to 01/01/2019 (or your earliest lot), <em>To</em> to today, then Search and Download.
+                <a href="https://www.rbi.org.in/scripts/referenceratearchive.aspx" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">Open RBI reference rate archive</a>
+              </div>
+            </details>
+            <div class="upload-btn-inner" id="xlsBtnLabel">Choose file</div>
           </div>
-          <div class="upload-btn-inner" id="xlsBtnLabel" style="margin-top:4px">Choose File</div>
         </div>
       </div>
       </div><!-- /pfupBody_schwab -->
@@ -88,62 +119,55 @@
 
     <!-- IndMoney -->
     <div class="pfup-block" id="pfupBlock_indmoney" style="display:none">
-      <div class="pfup-header" onclick="togglePfup('indmoney')"><span>💹 IndMoney — Upload Files</span><span style="display:flex;align-items:center;gap:8px"><span class="pfup-status" id="pfupStatus_indmoney"></span><span class="pfup-toggle" id="pfupToggle_indmoney">▼</span></span></div>
+      <div class="pfup-header" onclick="togglePfup('indmoney')">
+        <span>IndMoney</span>
+        <span style="display:flex;align-items:center;gap:8px"><span class="pfup-status" id="pfupStatus_indmoney"></span><span class="pfup-toggle" id="pfupToggle_indmoney">▼</span></span>
+      </div>
       <div class="pfup-body" id="pfupBody_indmoney">
       <div style="padding:12px 16px 16px">
-        <div class="im-sub-tabs" id="imSubTabs" style="margin-bottom:12px">
-          <button class="im-sub-tab active" id="imTabUs" onclick="setImSubMode('us')">🇺🇸 US Market</button>
-          <button class="im-sub-tab" id="imTabIn" onclick="setImSubMode('in')">🇮🇳 India Market</button>
+        <div class="im-sub-tabs" id="imSubTabs" style="margin-bottom:12px" role="tablist">
+          <button type="button" class="im-sub-tab active" id="imTabUs" onclick="setImSubMode('us')">US market</button>
+          <button type="button" class="im-sub-tab" id="imTabIn" onclick="setImSubMode('in')">India market</button>
         </div>
         <div id="imUsUploadCards" style="display:flex;flex-direction:column;gap:12px">
           <div style="display:flex;gap:12px;flex-wrap:wrap">
             <div class="z-upload-card" id="imUsCgCard" style="flex:1;min-width:220px">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
               <h3>Capital Gains Statement</h3>
               <p>IND-CG-STMT*.xls — required</p>
-              <div style="font-size:10.5px;color:#999;margin-top:4px;line-height:1.5;text-align:left;background:#f8faff;border-radius:6px;padding:6px 8px">
-                IndMoney → US Stocks → Reports → Capital Gains<br>
-                <em>Download <strong>IND-CG-STMT*.xls</strong> for the financial year.</em><br>
-                <span style="color:#b71c1c">Not needed: Form 67, Schedule FSI/TR, 1042-S PDF</span>
-              </div>
-              <div class="upload-btn-inner" onclick="document.getElementById('imUsCgFile').click()" style="margin-top:6px;font-size:12px;padding:6px 16px;cursor:pointer">Choose File</div>
+              <div style="font-size:.6875rem;color:var(--muted);margin-top:4px;line-height:1.5">IndMoney → US Stocks → Reports → Capital Gains</div>
+              <div class="upload-btn-inner" onclick="document.getElementById('imUsCgFile').click()" style="margin-top:6px;font-size:.75rem;padding:6px 16px;cursor:pointer">Choose File</div>
               <div id="imUsCgInfo" class="z-files-info"></div>
             </div>
             <div class="z-upload-card" id="imUsFaCard" style="flex:1;min-width:220px">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
               <h3>Foreign Assets Schedule</h3>
               <p>IND-FA-SCHEDULE*.xls — optional</p>
-              <div style="font-size:10.5px;color:#999;margin-top:4px;line-height:1.5;text-align:left;background:#f8faff;border-radius:6px;padding:6px 8px">
-                IndMoney → US Stocks → Reports → FA Schedule<br>
-                <em>Download <strong>IND-FA-SCHEDULE*.xls</strong> for open positions.</em>
-              </div>
-              <div class="upload-btn-inner" onclick="document.getElementById('imUsFaFile').click()" style="margin-top:6px;font-size:12px;padding:6px 16px;cursor:pointer">Choose File</div>
+              <div style="font-size:.6875rem;color:var(--muted);margin-top:4px;line-height:1.5">IndMoney → US Stocks → Reports → FA Schedule</div>
+              <div class="upload-btn-inner" onclick="document.getElementById('imUsFaFile').click()" style="margin-top:6px;font-size:.75rem;padding:6px 16px;cursor:pointer">Choose File</div>
               <div id="imUsFaInfo" class="z-files-info"></div>
             </div>
           </div>
         </div>
         <div id="imInUploadCards" style="display:none;flex-direction:column;gap:12px">
-          <div style="font-size:12px;color:#888;padding:4px 2px">IndMoney India market tradebooks — FIFO, intraday, open positions. Export from IndMoney → Stocks → Reports → Tradebook.</div>
+          <div style="font-size:.75rem;color:var(--muted);padding:4px 2px">IndMoney India market tradebooks — FIFO, intraday, open positions.</div>
           <div class="z-upload-cards">
             <div class="z-upload-card" id="imInEqCard">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-              <h3>Equity Tradebook</h3><p>.xlsx/.csv — optional, multiple ok</p>
-              <div style="font-size:10.5px;color:#999;margin-top:4px;line-height:1.5;text-align:left;background:#f8faff;border-radius:6px;padding:6px 8px">IndMoney → India Stocks → Tradebook → Equity</div>
-              <div class="upload-btn-inner" onclick="document.getElementById('imInEqFile').click()" style="margin-top:6px;font-size:12px;padding:6px 16px;cursor:pointer">+ Add File</div>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <h3>Equity Tradebook</h3><p>.xlsx/.csv · multiple ok</p>
+              <div class="upload-btn-inner" onclick="document.getElementById('imInEqFile').click()" style="margin-top:6px;font-size:.75rem;padding:6px 16px;cursor:pointer">+ Add File</div>
               <div id="imInEqFilesInfo" class="z-files-info"></div>
             </div>
             <div class="z-upload-card" id="imInFoCard">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-              <h3>F&amp;O Tradebook</h3><p>.xlsx/.csv — optional, multiple ok</p>
-              <div style="font-size:10.5px;color:#999;margin-top:4px;line-height:1.5;text-align:left;background:#f8faff;border-radius:6px;padding:6px 8px">IndMoney → India Stocks → Tradebook → F&amp;O</div>
-              <div class="upload-btn-inner" onclick="document.getElementById('imInFoFile').click()" style="margin-top:6px;font-size:12px;padding:6px 16px;cursor:pointer">+ Add File</div>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <h3>F&amp;O Tradebook</h3><p>.xlsx/.csv · multiple ok</p>
+              <div class="upload-btn-inner" onclick="document.getElementById('imInFoFile').click()" style="margin-top:6px;font-size:.75rem;padding:6px 16px;cursor:pointer">+ Add File</div>
               <div id="imInFoFilesInfo" class="z-files-info"></div>
             </div>
             <div class="z-upload-card" id="imInMfCard">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-              <h3>Mutual Fund Tradebook</h3><p>.xlsx/.csv — optional, multiple ok</p>
-              <div style="font-size:10.5px;color:#999;margin-top:4px;line-height:1.5;text-align:left;background:#f8faff;border-radius:6px;padding:6px 8px">IndMoney → Mutual Funds → Tradebook</div>
-              <div class="upload-btn-inner" onclick="document.getElementById('imInMfFile').click()" style="margin-top:6px;font-size:12px;padding:6px 16px;cursor:pointer">+ Add File</div>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <h3>Mutual Fund Tradebook</h3><p>.xlsx/.csv · multiple ok</p>
+              <div class="upload-btn-inner" onclick="document.getElementById('imInMfFile').click()" style="margin-top:6px;font-size:.75rem;padding:6px 16px;cursor:pointer">+ Add File</div>
               <div id="imInMfFilesInfo" class="z-files-info"></div>
             </div>
           </div>
@@ -154,29 +178,32 @@
 
     <!-- Zerodha -->
     <div class="pfup-block" id="pfupBlock_zerodha" style="display:none">
-      <div class="pfup-header" onclick="togglePfup('zerodha')"><span>🏦 Zerodha — Upload Files</span><span style="display:flex;align-items:center;gap:8px"><span class="pfup-status" id="pfupStatus_zerodha"></span><span class="pfup-toggle" id="pfupToggle_zerodha">▼</span></span></div>
+      <div class="pfup-header" onclick="togglePfup('zerodha')">
+        <span>Zerodha</span>
+        <span style="display:flex;align-items:center;gap:8px"><span class="pfup-status" id="pfupStatus_zerodha"></span><span class="pfup-toggle" id="pfupToggle_zerodha">▼</span></span>
+      </div>
       <div class="pfup-body" id="pfupBody_zerodha">
       <div style="padding:12px 16px 16px">
         <div class="z-upload-cards">
           <div class="z-upload-card" id="zEqCard">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            <h3>Equity Tradebook</h3><p>.xlsx — optional, multiple files ok</p>
-            <div style="font-size:10.5px;color:#999;margin-top:4px;line-height:1.5;text-align:left;background:#f8faff;border-radius:6px;padding:6px 8px">Zerodha → Reports → Tradebook → Equity → Export<br><em>Max 365 days per download.</em></div>
-            <div class="upload-btn-inner" onclick="document.getElementById('zEqFile').click()" style="margin-top:6px;font-size:12px;padding:6px 16px;cursor:pointer">+ Add File</div>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <h3>Equity Tradebook</h3><p>.xlsx · multiple ok</p>
+            <div style="font-size:.6875rem;color:var(--muted);margin-top:3px;line-height:1.4">Zerodha → Reports → Tradebook → Equity → Export</div>
+            <div class="upload-btn-inner" onclick="document.getElementById('zEqFile').click()" style="margin-top:6px;font-size:.75rem;padding:6px 16px;cursor:pointer">+ Add File</div>
             <div id="zEqFilesInfo" class="z-files-info"></div>
           </div>
           <div class="z-upload-card" id="zFoCard">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            <h3>F&amp;O Tradebook</h3><p>.xlsx — optional, multiple files ok</p>
-            <div style="font-size:10.5px;color:#999;margin-top:4px;line-height:1.5;text-align:left;background:#f8faff;border-radius:6px;padding:6px 8px">Zerodha → Reports → Tradebook → F&amp;O → Export<br><em>Max 365 days per download.</em></div>
-            <div class="upload-btn-inner" onclick="document.getElementById('zFoFile').click()" style="margin-top:6px;font-size:12px;padding:6px 16px;cursor:pointer">+ Add File</div>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <h3>F&amp;O Tradebook</h3><p>.xlsx · multiple ok</p>
+            <div style="font-size:.6875rem;color:var(--muted);margin-top:3px;line-height:1.4">Zerodha → Reports → Tradebook → F&amp;O → Export</div>
+            <div class="upload-btn-inner" onclick="document.getElementById('zFoFile').click()" style="margin-top:6px;font-size:.75rem;padding:6px 16px;cursor:pointer">+ Add File</div>
             <div id="zFoFilesInfo" class="z-files-info"></div>
           </div>
           <div class="z-upload-card" id="zMfCard">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            <h3>Mutual Fund Tradebook</h3><p>.xlsx — optional, multiple files ok</p>
-            <div style="font-size:10.5px;color:#999;margin-top:4px;line-height:1.5;text-align:left;background:#f8faff;border-radius:6px;padding:6px 8px">Zerodha → Reports → Tradebook → Mutual Funds → Export<br><em>Max 365 days per download.</em></div>
-            <div class="upload-btn-inner" onclick="document.getElementById('zMfFile').click()" style="margin-top:6px;font-size:12px;padding:6px 16px;cursor:pointer">+ Add File</div>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <h3>Mutual Fund Tradebook</h3><p>.xlsx · multiple ok</p>
+            <div style="font-size:.6875rem;color:var(--muted);margin-top:3px;line-height:1.4">Zerodha → Reports → Tradebook → Mutual Funds → Export</div>
+            <div class="upload-btn-inner" onclick="document.getElementById('zMfFile').click()" style="margin-top:6px;font-size:.75rem;padding:6px 16px;cursor:pointer">+ Add File</div>
             <div id="zMfFilesInfo" class="z-files-info"></div>
           </div>
         </div>
@@ -186,29 +213,32 @@
 
     <!-- Groww -->
     <div class="pfup-block" id="pfupBlock_groww" style="display:none">
-      <div class="pfup-header" onclick="togglePfup('groww')"><span>🌱 Groww — Upload Files</span><span style="display:flex;align-items:center;gap:8px"><span class="pfup-status" id="pfupStatus_groww"></span><span class="pfup-toggle" id="pfupToggle_groww">▼</span></span></div>
+      <div class="pfup-header" onclick="togglePfup('groww')">
+        <span>Groww</span>
+        <span style="display:flex;align-items:center;gap:8px"><span class="pfup-status" id="pfupStatus_groww"></span><span class="pfup-toggle" id="pfupToggle_groww">▼</span></span>
+      </div>
       <div class="pfup-body" id="pfupBody_groww">
       <div style="padding:12px 16px 16px">
         <div class="z-upload-cards">
           <div class="z-upload-card" id="gEqCard">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            <h3>Equity Tradebook</h3><p>.xlsx — optional, multiple files ok</p>
-            <div style="font-size:10.5px;color:#999;margin-top:4px;line-height:1.5;text-align:left;background:#f8faff;border-radius:6px;padding:6px 8px">Groww → Reports → Tradebook → Equity → Export<br><em>Max 365 days per download.</em></div>
-            <div class="upload-btn-inner" onclick="document.getElementById('gEqFile').click()" style="margin-top:6px;font-size:12px;padding:6px 16px;cursor:pointer">+ Add File</div>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <h3>Equity Tradebook</h3><p>.xlsx · multiple ok</p>
+            <div style="font-size:.6875rem;color:var(--muted);margin-top:3px;line-height:1.4">Groww → Reports → Tradebook → Equity → Export</div>
+            <div class="upload-btn-inner" onclick="document.getElementById('gEqFile').click()" style="margin-top:6px;font-size:.75rem;padding:6px 16px;cursor:pointer">+ Add File</div>
             <div id="gEqFilesInfo" class="z-files-info"></div>
           </div>
           <div class="z-upload-card" id="gFoCard">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            <h3>F&amp;O Tradebook</h3><p>.xlsx — optional, multiple files ok</p>
-            <div style="font-size:10.5px;color:#999;margin-top:4px;line-height:1.5;text-align:left;background:#f8faff;border-radius:6px;padding:6px 8px">Groww → Reports → Tradebook → F&amp;O → Export<br><em>Max 365 days per download.</em></div>
-            <div class="upload-btn-inner" onclick="document.getElementById('gFoFile').click()" style="margin-top:6px;font-size:12px;padding:6px 16px;cursor:pointer">+ Add File</div>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <h3>F&amp;O Tradebook</h3><p>.xlsx · multiple ok</p>
+            <div style="font-size:.6875rem;color:var(--muted);margin-top:3px;line-height:1.4">Groww → Reports → Tradebook → F&amp;O → Export</div>
+            <div class="upload-btn-inner" onclick="document.getElementById('gFoFile').click()" style="margin-top:6px;font-size:.75rem;padding:6px 16px;cursor:pointer">+ Add File</div>
             <div id="gFoFilesInfo" class="z-files-info"></div>
           </div>
           <div class="z-upload-card" id="gMfCard">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            <h3>Mutual Fund Tradebook</h3><p>.xlsx — optional, multiple files ok</p>
-            <div style="font-size:10.5px;color:#999;margin-top:4px;line-height:1.5;text-align:left;background:#f8faff;border-radius:6px;padding:6px 8px">Groww → Reports → Tradebook → Mutual Funds → Export<br><em>Max 365 days per download.</em></div>
-            <div class="upload-btn-inner" onclick="document.getElementById('gMfFile').click()" style="margin-top:6px;font-size:12px;padding:6px 16px;cursor:pointer">+ Add File</div>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <h3>Mutual Fund Tradebook</h3><p>.xlsx · multiple ok</p>
+            <div style="font-size:.6875rem;color:var(--muted);margin-top:3px;line-height:1.4">Groww → Reports → Tradebook → Mutual Funds → Export</div>
+            <div class="upload-btn-inner" onclick="document.getElementById('gMfFile').click()" style="margin-top:6px;font-size:.75rem;padding:6px 16px;cursor:pointer">+ Add File</div>
             <div id="gMfFilesInfo" class="z-files-info"></div>
           </div>
         </div>
@@ -217,10 +247,20 @@
     </div>
 
   </div><!-- /pfUploads -->
+    <div class="wizard-next-row">
+      <button type="button" class="wizard-back-btn" onclick="switchToStep(2)">← Back</button>
+      <button type="button" class="wizard-next-btn" onclick="switchToStep(4)">Next: Analyze →</button>
+    </div>
+  </section>
+  </div>
 
-  <!-- Analyze All button -->
-  <div id="analyzeAllRow" style="display:none;padding:16px 20px 24px;align-items:center;gap:12px">
-    <button id="analyzeAllBtn" onclick="runAnalysisAll()" disabled>🚀 Analyze All Selected</button>
-    <span id="analyzeAllHint" style="font-size:12px;color:#aaa">Upload at least one file to analyze</span>
+  <div id="wizardPanel4" class="wizard-panel">
+  <div id="analyzeAllRow">
+    <div class="wizard-next-row" style="padding:0 0 16px">
+      <button type="button" class="wizard-back-btn" onclick="switchToStep(3)">← Back</button>
+    </div>
+    <button type="button" id="analyzeAllBtn" onclick="runAnalysisAll()" disabled>Analyze</button>
+    <span id="analyzeAllHint">Upload files for your selected platforms to continue</span>
+  </div>
   </div>
 </div><!-- /landingPanel -->
