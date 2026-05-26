@@ -1,0 +1,18 @@
+# Personal tax documents
+2025/
+2026/
+IndMoney/
+zerodha/
+platform/
+
+# Personal files
+UST-to-INR.xls
+EquityAwardsCenter_EquityDetails_*.csv
+FY_*.pdf
+rovo-demo.png
+
+# Backups
+*.bak
+
+# macOS
+.DS_Store

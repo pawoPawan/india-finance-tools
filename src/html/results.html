@@ -1,0 +1,173 @@
+<!-- COMBINED RESULTS PANEL -->
+<div id="combinedResultsPanel" style="display:none;padding-bottom:32px">
+  <div class="crp-topbar">
+    <button class="crp-back-btn" onclick="backToSetup()">← Change Setup</button>
+    <span class="crp-platforms" id="crpPlatforms"></span>
+  </div>
+
+  <!-- ══ Charles Schwab ══ -->
+  <div class="pra-wrap" id="pra_schwab" style="display:none">
+    <div class="pra-header" onclick="togglePlatformResult('schwab')">
+      <span class="pra-icon">📈</span><span class="pra-name">Charles Schwab</span>
+      <span class="pra-meta" id="praMeta_schwab"></span>
+      <button class="pra-newfiles-btn" onclick="event.stopPropagation();resetSchwabToLanding()">↑ New Files</button>
+      <span class="pra-toggle" id="praToggle_schwab">▼</span>
+    </div>
+    <div class="pra-body" id="praBody_schwab">
+      <div class="settings-panel" id="settingsPanel" style="display:block">
+        <div class="settings-title">Portfolio &amp; Tax Settings</div>
+        <div class="settings-row">
+          <div class="field-grp"><label>Current Stock Price ($)</label><input type="number" id="currentPrice" placeholder="e.g. 120.00" step="0.01" oninput="rerender()"></div>
+          <div class="field-grp"><label>Today USD → INR</label><input type="number" id="todayINR" value="84.50" step="0.01" oninput="saveTodayINR();rerender()"></div>
+          <div class="field-grp" style="min-width:90px;max-width:120px"><label>LTCG Rate</label><input type="number" id="ltcgRate" value="12.5" step="0.5" oninput="rerender()"></div>
+        </div>
+        <div class="settings-row" style="margin-top:12px">
+          <div class="field-grp"><label>Tax Regime</label><div class="regime-toggle"><button class="regime-btn active" id="regimeNew" onclick="setRegime('new')">New</button><button class="regime-btn" id="regimeOld" onclick="setRegime('old')">Old</button></div></div>
+          <div class="field-grp"><label>Other Annual Income (₹ Lakhs, after deductions)</label><input type="number" id="otherIncome" value="0" step="0.5" placeholder="e.g. 25" oninput="rerender()"></div>
+          <div class="stcg-result" id="stcgRateDisplay">STCG: 30%</div>
+        </div>
+      </div>
+      <div id="rateTableSection" style="display:none"><div id="missingRatesBanner"></div><table style="display:none"><tbody id="rateTableBody"></tbody></table></div>
+      <div id="catSummarySection" style="display:none"><div class="cat-summary" id="catSummaryGrid"></div></div>
+      <div id="summarySection" style="display:none">
+        <div class="summary-grid" id="summaryGrid"></div>
+        <div class="filter-bar">
+          <div class="chip active" onclick="setFilter('all',this)">All Lots</div>
+          <div class="chip rsu" onclick="setFilter('RSU',this)">RSU</div>
+          <div class="chip espp" onclick="setFilter('ESPP',this)">ESPP</div>
+          <div class="chip ltcg" onclick="setFilter('LTCG',this)">LTCG</div>
+          <div class="chip stcg" onclick="setFilter('STCG',this)">STCG</div>
+        </div>
+        <div class="section-label" id="sectionLabel"></div>
+      </div>
+      <div class="lots-wrap" id="lotsWrap"></div>
+      <div class="disclaimer" id="disclaimerSection" style="display:none">
+        <strong>India Tax Note:</strong> LTCG applies to holdings held &gt;24 months (12.5% post July 2024 budget, no indexation). STCG on foreign equity is taxed at your income slab rate — enter your other income above for an accurate STCG rate. For RSU: capital gain cost basis = FMV at vest (perquisite already taxed as salary). For ESPP: cost basis = Purchase FMV, not discounted price. INR gain = stock appreciation in INR + forex gain (USD/INR change). Exchange rates are fetched from RBI reference rate archive; API rates used where RBI data is unavailable. <strong>Consult a CA for ITR filing.</strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ IndMoney ══ -->
+  <div class="pra-wrap" id="pra_indmoney" style="display:none">
+    <div class="pra-header" onclick="togglePlatformResult('indmoney')">
+      <span class="pra-icon">💹</span><span class="pra-name">IndMoney</span>
+      <span class="pra-meta" id="praMeta_indmoney"></span>
+      <button class="pra-newfiles-btn" onclick="event.stopPropagation();resetImToLanding()">↑ New Files</button>
+      <span class="pra-toggle" id="praToggle_indmoney">▼</span>
+    </div>
+    <div class="pra-body" id="praBody_indmoney">
+      <div class="im-settings-panel" id="imSettingsPanel" style="display:block">
+        <div class="settings-title">IndMoney Tax Settings</div>
+        <div class="settings-row">
+          <div class="field-grp"><label>Tax Regime</label><div class="regime-toggle"><button class="regime-btn active" id="imRegimeNew" onclick="setImRegime('new')">New</button><button class="regime-btn" id="imRegimeOld" onclick="setImRegime('old')">Old</button></div></div>
+          <div class="field-grp"><label>Other Annual Income (₹ Lakhs, after deductions)</label><input type="number" id="imOtherIncome" value="0" step="0.5" placeholder="e.g. 25" oninput="rerenderIndMoney(imActiveMarket)"></div>
+          <div class="field-grp" style="min-width:90px;max-width:120px"><label>STCG Rate %</label><input type="number" id="imStcgRate" value="30" step="0.5" oninput="rerenderIndMoney(imActiveMarket)"></div>
+          <div class="field-grp" style="min-width:90px;max-width:120px"><label>LTCG Rate %</label><input type="number" id="imLtcgRate" value="12.5" step="0.5" oninput="rerenderIndMoney(imActiveMarket)"></div>
+          <div class="field-grp" style="min-width:100px;max-width:130px"><label>USD → INR Rate</label><input type="number" id="imUsdRate" value="84.50" step="0.01" oninput="rerenderIndMoney(imActiveMarket)"></div>
+          <div style="display:flex;align-items:center;gap:8px;padding-top:18px">
+            <div class="im-currency-toggle" style="display:flex;background:rgba(26,26,46,.08);border-radius:9px;overflow:hidden;border:1px solid rgba(26,26,46,.15)">
+              <button class="currency-btn active" id="imCurrUSD" onclick="setImCurrency('USD')" style="padding:7px 14px;border:none;cursor:pointer;font-size:13px;font-weight:700;background:transparent;color:rgba(26,26,46,.5);transition:all .18s">$ USD</button>
+              <button class="currency-btn" id="imCurrINR" onclick="setImCurrency('INR')" style="padding:7px 14px;border:none;cursor:pointer;font-size:13px;font-weight:700;background:transparent;color:rgba(26,26,46,.5);transition:all .18s">₹ INR</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="imResultsWrapper" style="display:block">
+        <div id="imUsResults">
+          <div class="im-consolidated" id="imConsolidated"></div>
+          <div class="im-section" id="imStcgSection"><div class="im-section-header" onclick="toggleImSection('imStcgBody','imStcgToggle','imStcgMeta')"><span class="im-section-title">Short-Term Capital Gains</span><span class="im-section-meta" id="imStcgMeta"></span><span class="im-toggle-btn" id="imStcgToggle">▼</span></div><div class="im-section-body" id="imStcgBody"><div id="imStcgCards"></div></div></div>
+          <div class="im-section" id="imLtcgSection"><div class="im-section-header" onclick="toggleImSection('imLtcgBody','imLtcgToggle','imLtcgMeta')"><span class="im-section-title">Long-Term Capital Gains</span><span class="im-section-meta" id="imLtcgMeta"></span><span class="im-toggle-btn" id="imLtcgToggle">▼</span></div><div class="im-section-body" id="imLtcgBody"><div id="imLtcgCards"></div></div></div>
+          <div class="im-section" id="imDivSection"><div class="im-section-header" onclick="toggleImSection('imDivBody','imDivToggle','imDivMeta')"><span class="im-section-title">Dividend Income</span><span class="im-section-meta" id="imDivMeta"></span><span class="im-toggle-btn" id="imDivToggle">▼</span></div><div class="im-section-body" id="imDivBody"><div id="imDivCards"></div></div></div>
+          <div class="im-section" id="imHoldingsSection"><div class="im-section-header" onclick="toggleImSection('imHoldingsBody','imHoldingsToggle','imHoldingsMeta')"><span class="im-section-title">Open Positions (FA Schedule)</span><span class="im-section-meta" id="imHoldingsMeta"></span><span class="im-toggle-btn" id="imHoldingsToggle">▼</span></div><div class="im-section-body" id="imHoldingsBody"><div id="imHoldingsCards"></div></div></div>
+          <div class="im-section" id="imSoldSection" style="display:none"><div class="im-section-header" onclick="toggleImSection('imSoldBody','imSoldToggle','imSoldMeta')"><span class="im-section-title">Sold This FY (FA Schedule)</span><span class="im-section-meta" id="imSoldMeta"></span><span class="im-toggle-btn" id="imSoldToggle">▼</span></div><div class="im-section-body" id="imSoldBody"><div id="imSoldCards"></div></div></div>
+          <div id="imFaSummary" style="display:none"></div>
+        </div>
+        <div id="imInResults" style="display:none">
+          <div class="z-consolidated" id="imInConsolidated"></div>
+          <div class="z-filter-bar" id="imInFilterBar">
+            <div class="chip active" onclick="setImInFilter('all',this)">All</div>
+            <div class="chip" onclick="setImInFilter('equity',this)">Equity</div>
+            <div class="chip" onclick="setImInFilter('fo',this)">F&amp;O</div>
+            <div class="chip" onclick="setImInFilter('mf',this)">Mutual Funds</div>
+          </div>
+          <div class="z-section" id="imInRealizedSection"><div class="z-section-header" onclick="toggleZSection('imInRealizedBody','imInRealizedToggle','imInRealizedMeta')"><span class="z-section-title">Equity — Realized Gains / Losses</span><span class="z-section-meta" id="imInRealizedMeta"></span><span class="z-toggle-btn" id="imInRealizedToggle">▼</span></div><div class="z-section-body" id="imInRealizedBody"><div id="imInRealizedCards"></div></div></div>
+          <div class="z-section" id="imInOpenSection"><div class="z-section-header" onclick="toggleZSection('imInOpenBody','imInOpenToggle','imInOpenMeta')"><span class="z-section-title">Equity — Open Positions</span><span class="z-section-meta" id="imInOpenMeta"></span><span class="z-toggle-btn" id="imInOpenToggle">▼</span></div><div class="z-section-body" id="imInOpenBody"><div id="imInOpenCards"></div></div></div>
+          <div class="z-section" id="imInIntradaySection"><div class="z-section-header" onclick="toggleZSection('imInIntradayBody','imInIntradayToggle','imInIntradayMeta')"><span class="z-section-title">Intraday — Speculative P&amp;L</span><span class="z-section-meta" id="imInIntradayMeta"></span><span class="z-toggle-btn" id="imInIntradayToggle">▼</span></div><div class="z-section-body" id="imInIntradayBody"><div id="imInIntradayContent"></div></div></div>
+          <div class="z-section" id="imInFoSection"><div class="z-section-header" onclick="toggleZSection('imInFoBody','imInFoToggle','imInFoMeta')"><span class="z-section-title">F&amp;O — Contract P&amp;L</span><span class="z-section-meta" id="imInFoMeta"></span><span class="z-toggle-btn" id="imInFoToggle">▼</span></div><div class="z-section-body" id="imInFoBody"><div id="imInFoContent"></div></div></div>
+          <div class="z-section" id="imInMfSection"><div class="z-section-header" onclick="toggleZSection('imInMfBody','imInMfToggle','imInMfMeta')"><span class="z-section-title">Mutual Funds — Holdings &amp; Realized</span><span class="z-section-meta" id="imInMfMeta"></span><span class="z-toggle-btn" id="imInMfToggle">▼</span></div><div class="z-section-body" id="imInMfBody"><div id="imInMfContent"></div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ Zerodha ══ -->
+  <div class="pra-wrap" id="pra_zerodha" style="display:none">
+    <div class="pra-header" onclick="togglePlatformResult('zerodha')">
+      <span class="pra-icon">🏦</span><span class="pra-name">Zerodha</span>
+      <span class="pra-meta" id="praMeta_zerodha"></span>
+      <button class="pra-newfiles-btn" onclick="event.stopPropagation();resetZerodhaToLanding()">↑ New Files</button>
+      <span class="pra-toggle" id="praToggle_zerodha">▼</span>
+    </div>
+    <div class="pra-body" id="praBody_zerodha">
+      <div class="z-settings-panel" id="zSettingsPanel" style="display:block">
+        <div class="settings-title">Zerodha Tax Settings (India)</div>
+        <div class="settings-row">
+          <div class="field-grp"><label>Tax Regime</label><div class="regime-toggle"><button class="regime-btn active" id="zRegimeNew" onclick="setZRegime('new')">New</button><button class="regime-btn" id="zRegimeOld" onclick="setZRegime('old')">Old</button></div></div>
+          <div class="field-grp"><label>Other Annual Income (₹ Lakhs, after deductions)</label><input type="number" id="zOtherIncome" value="0" step="0.5" placeholder="e.g. 25" oninput="rerenderZerodha()"></div>
+          <div class="field-grp" style="min-width:90px;max-width:120px"><label>STCG Rate %</label><input type="number" id="zStcgRate" value="20" step="0.5" oninput="rerenderZerodha()"></div>
+          <div class="field-grp" style="min-width:90px;max-width:120px"><label>LTCG Rate %</label><input type="number" id="zLtcgRate" value="12.5" step="0.5" oninput="rerenderZerodha()"></div>
+        </div>
+      </div>
+      <div id="zResultsWrapper" style="display:block">
+        <div class="z-consolidated" id="zConsolidated"></div>
+        <div class="z-filter-bar" id="zFilterBar">
+          <div class="chip active" onclick="setZFilter('all',this)">All</div>
+          <div class="chip" onclick="setZFilter('equity',this)">Equity</div>
+          <div class="chip" onclick="setZFilter('fo',this)">F&amp;O</div>
+          <div class="chip" onclick="setZFilter('mf',this)">Mutual Funds</div>
+        </div>
+        <div class="z-section" id="zRealizedSection"><div class="z-section-header" onclick="toggleZSection('zRealizedBody','zRealizedToggle','zRealizedMeta')"><span class="z-section-title">Equity — Realized Gains / Losses</span><span class="z-section-meta" id="zRealizedMeta"></span><span class="z-toggle-btn" id="zRealizedToggle">▼</span></div><div class="z-section-body" id="zRealizedBody"><div id="zRealizedCards"></div></div></div>
+        <div class="z-section" id="zOpenSection"><div class="z-section-header" onclick="toggleZSection('zOpenBody','zOpenToggle','zOpenMeta')"><span class="z-section-title">Equity — Open Positions</span><span class="z-section-meta" id="zOpenMeta"></span><span class="z-toggle-btn" id="zOpenToggle">▼</span></div><div class="z-section-body" id="zOpenBody"><div id="zOpenCards"></div></div></div>
+        <div class="z-section" id="zFoSection"><div class="z-section-header" onclick="toggleZSection('zFoBody','zFoToggle','zFoMeta')"><span class="z-section-title">F&amp;O — Contract P&amp;L</span><span class="z-section-meta" id="zFoMeta"></span><span class="z-toggle-btn" id="zFoToggle">▼</span></div><div class="z-section-body" id="zFoBody"><div id="zFoContent"></div></div></div>
+        <div class="z-section" id="zIntradaySection"><div class="z-section-header" onclick="toggleZSection('zIntradayBody','zIntradayToggle','zIntradayMeta')"><span class="z-section-title">Intraday — Speculative P&amp;L</span><span class="z-section-meta" id="zIntradayMeta"></span><span class="z-toggle-btn" id="zIntradayToggle">▼</span></div><div class="z-section-body" id="zIntradayBody"><div id="zIntradayContent"></div></div></div>
+        <div class="z-section" id="zMfSection"><div class="z-section-header" onclick="toggleZSection('zMfBody','zMfToggle','zMfMeta')"><span class="z-section-title">Mutual Funds — Holdings &amp; Realized</span><span class="z-section-meta" id="zMfMeta"></span><span class="z-toggle-btn" id="zMfToggle">▼</span></div><div class="z-section-body" id="zMfBody"><div id="zMfContent"></div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ Groww ══ -->
+  <div class="pra-wrap" id="pra_groww" style="display:none">
+    <div class="pra-header" onclick="togglePlatformResult('groww')">
+      <span class="pra-icon">🌱</span><span class="pra-name">Groww</span>
+      <span class="pra-meta" id="praMeta_groww"></span>
+      <button class="pra-newfiles-btn" onclick="event.stopPropagation();resetGrowwToLanding()">↑ New Files</button>
+      <span class="pra-toggle" id="praToggle_groww">▼</span>
+    </div>
+    <div class="pra-body" id="praBody_groww">
+      <div class="z-settings-panel" id="gSettingsPanel" style="display:block">
+        <div class="settings-title">Groww Tax Settings (India)</div>
+        <div class="settings-row">
+          <div class="field-grp"><label>Tax Regime</label><div class="regime-toggle"><button class="regime-btn active" id="gRegimeNew" onclick="setGRegime('new')">New</button><button class="regime-btn" id="gRegimeOld" onclick="setGRegime('old')">Old</button></div></div>
+          <div class="field-grp"><label>Other Annual Income (₹ Lakhs, after deductions)</label><input type="number" id="gOtherIncome" value="0" step="0.5" placeholder="e.g. 25" oninput="rerenderGroww()"></div>
+          <div class="field-grp" style="min-width:90px;max-width:120px"><label>STCG Rate %</label><input type="number" id="gStcgRate" value="20" step="0.5" oninput="rerenderGroww()"></div>
+          <div class="field-grp" style="min-width:90px;max-width:120px"><label>LTCG Rate %</label><input type="number" id="gLtcgRate" value="12.5" step="0.5" oninput="rerenderGroww()"></div>
+        </div>
+      </div>
+      <div id="gResultsWrapper" style="display:block">
+        <div class="z-consolidated" id="gConsolidated"></div>
+        <div class="z-filter-bar" id="gFilterBar">
+          <div class="chip active" onclick="setGFilter('all',this)">All</div>
+          <div class="chip" onclick="setGFilter('equity',this)">Equity</div>
+          <div class="chip" onclick="setGFilter('fo',this)">F&amp;O</div>
+          <div class="chip" onclick="setGFilter('mf',this)">Mutual Funds</div>
+        </div>
+        <div class="z-section" id="gRealizedSection"><div class="z-section-header" onclick="toggleZSection('gRealizedBody','gRealizedToggle','gRealizedMeta')"><span class="z-section-title">Equity — Realized Gains / Losses</span><span class="z-section-meta" id="gRealizedMeta"></span><span class="z-toggle-btn" id="gRealizedToggle">▼</span></div><div class="z-section-body" id="gRealizedBody"><div id="gRealizedCards"></div></div></div>
+        <div class="z-section" id="gOpenSection"><div class="z-section-header" onclick="toggleZSection('gOpenBody','gOpenToggle','gOpenMeta')"><span class="z-section-title">Equity — Open Positions</span><span class="z-section-meta" id="gOpenMeta"></span><span class="z-toggle-btn" id="gOpenToggle">▼</span></div><div class="z-section-body" id="gOpenBody"><div id="gOpenCards"></div></div></div>
+        <div class="z-section" id="gFoSection"><div class="z-section-header" onclick="toggleZSection('gFoBody','gFoToggle','gFoMeta')"><span class="z-section-title">F&amp;O — Contract P&amp;L</span><span class="z-section-meta" id="gFoMeta"></span><span class="z-toggle-btn" id="gFoToggle">▼</span></div><div class="z-section-body" id="gFoBody"><div id="gFoContent"></div></div></div>
+        <div class="z-section" id="gIntradaySection"><div class="z-section-header" onclick="toggleZSection('gIntradayBody','gIntradayToggle','gIntradayMeta')"><span class="z-section-title">Intraday — Speculative P&amp;L</span><span class="z-section-meta" id="gIntradayMeta"></span><span class="z-toggle-btn" id="gIntradayToggle">▼</span></div><div class="z-section-body" id="gIntradayBody"><div id="gIntradayContent"></div></div></div>
+        <div class="z-section" id="gMfSection"><div class="z-section-header" onclick="toggleZSection('gMfBody','gMfToggle','gMfMeta')"><span class="z-section-title">Mutual Funds — Holdings &amp; Realized</span><span class="z-section-meta" id="gMfMeta"></span><span class="z-toggle-btn" id="gMfToggle">▼</span></div><div class="z-section-body" id="gMfBody"><div id="gMfContent"></div></div></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /combinedResultsPanel -->
