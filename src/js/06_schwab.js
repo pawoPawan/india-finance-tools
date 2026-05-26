@@ -107,10 +107,13 @@ function initWithBoth(lots, xlsRates) {
     ratesMap[TODAY] = { rate: todayFound.rate, source: 'rbi' };
   }
 
+  pendingLots = null;
+  pendingXlsRates = null;
   showMainUI();
   activateFilter('all');
   renderRateTable();
   rerender();
+  updateAnalyzeAllBtn();
 }
 
 // ── Reset filter chip + activeFilter variable ──────────────────────
