@@ -6,17 +6,26 @@
 <title>MF Analyzer · India</title>
 <!-- Service Worker: register early so API calls are intercepted from first load -->
 <script>
+// _swReady: true once SW is the controller; init() checks this before running
+window._swReady = !('serviceWorker' in navigator) || !!navigator.serviceWorker.controller;
 (function(){
   if(!('serviceWorker' in navigator)) return;
   navigator.serviceWorker.register('./sw.js').then(function(reg){
-    // First visit: no controller yet → show splash until SW takes control then reload
+    // Controller is null on first visit OR after a hard refresh (browser bypasses SW).
+    // Instead of reloading (double page load), show a splash and call init() directly
+    // once the SW claims this client — no second network round-trip needed.
     if(!navigator.serviceWorker.controller){
       var s=document.createElement('div');
       s.id='swSplash';
       s.style.cssText='position:fixed;inset:0;background:#F7F5F0;z-index:9999;display:flex;align-items:center;justify-content:center;gap:14px;font-family:system-ui';
       s.innerHTML='<style>@keyframes sw-spin{to{transform:rotate(360deg)}}</style><div style="width:26px;height:26px;border:3px solid #E8E4DC;border-top-color:#0F766E;border-radius:50%;animation:sw-spin .7s linear infinite"></div><span style="color:#57534E;font-size:.88rem">Setting up MF Analyzer…</span>';
       document.body?document.body.prepend(s):document.addEventListener('DOMContentLoaded',function(){document.body.prepend(s);});
-      navigator.serviceWorker.addEventListener('controllerchange',function(){location.reload();});
+      navigator.serviceWorker.addEventListener('controllerchange',function once(){
+        navigator.serviceWorker.removeEventListener('controllerchange',once);
+        document.getElementById('swSplash')?.remove();
+        window._swReady=true;
+        if(typeof init==='function') init();
+      });
     }
   }).catch(function(e){console.warn('SW registration failed:',e);});
 })();
@@ -2572,7 +2581,9 @@ function avg(a){ return a.length?a.reduce((x,y)=>x+y,0)/a.length:0; }
 function riskLbl(r){ return r==null?'—':({1:'Low',2:'Below Avg',3:'Average',4:'Above Avg',5:'High'}[r]||r); }
 function toast(msg){ const el=document.getElementById('toast');el.textContent=msg;el.classList.add('on');setTimeout(()=>el.classList.remove('on'),4200); }
 
-init();
+// Only run init if SW is already controlling this page.
+// If not ready yet (hard refresh / first visit), the controllerchange handler above will call init().
+if(window._swReady) init();
 </script>
 </body>
 </html>
