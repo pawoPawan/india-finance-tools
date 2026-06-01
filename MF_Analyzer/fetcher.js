@@ -108,7 +108,9 @@ var MFfetcher = (function () {
       const jwt  = await getJWT();
       const hdrs = { ...BASE_HDRS, 'Authorization': `Bearer ${jwt}`, 'x-sal-clientid': 'RSIN_SAL' };
       const testUrl = _salUrl(`portfolio/holding/v2/F00000Q30V/data`, { secId:'F00000Q30V' });
-      const r = await fetch(_proxied(testUrl), { headers: hdrs });
+      // Call SAL directly — apac-api.morningstar.com has CORS:* and allows browser IPs;
+      // routing through the Cloudflare proxy gets blocked by Morningstar's CloudFront WAF.
+      const r = await fetch(testUrl, { headers: hdrs });
       if (r.ok || r.status === 404) {   // 404 = endpoint works, fund just not found
         _salHeaders = hdrs; _salTs = Date.now();
         await MFidb.setConfig('sal_headers', { headers: _salHeaders, ts: _salTs });
@@ -139,11 +141,12 @@ var MFfetcher = (function () {
     const headers = hdrs || await getSALHeaders();
     if (!headers) throw new Error('SAL headers unavailable. Paste them from DevTools in Setup.');
     const url = _salUrl(path, extra);
-    let resp = await fetch(_proxied(url), { headers });
+    // Direct browser call — SAL API has CORS:* and residential IPs bypass Morningstar WAF
+    let resp = await fetch(url, { headers });
     if (resp.status === 401) {
       // Try refreshing SAL headers once
       const fresh = await getSALHeaders(true);
-      if (fresh) resp = await fetch(_proxied(url), { headers: fresh });
+      if (fresh) resp = await fetch(url, { headers: fresh });
     }
     if (!resp.ok) throw new Error(`SAL ${resp.status} for ${path}`);
     return resp.json();

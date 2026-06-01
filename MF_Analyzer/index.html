@@ -1527,12 +1527,8 @@ async function bulkFetch() {
   const btn = document.getElementById('anlFetchAllBtn');
   btn.disabled = true;
 
-  // Get SAL headers (auto-fetches JWT if needed)
+  // Get SAL headers (auto-fetches JWT if needed); proceed even if null — per-fund errors are silently skipped
   let hdrs = await MFfetcher.getSALHeaders().catch(() => null);
-  if (!hdrs) {
-    btn.disabled = false;
-    toast('SAL auth not available — open ⚙ Setup to paste headers'); openSetup(); return;
-  }
 
   // Get full fund list from IDB
   const funds = await MFidb.getFunds();
