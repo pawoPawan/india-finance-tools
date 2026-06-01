@@ -587,7 +587,9 @@ table.ft tr{cursor:pointer;transition:background .1s}
 
 <script>
 // ── State ──
-const API = '';
+// Build API base path so fetch('/api/...') stays within the SW scope
+// e.g. /india-finance-tools/MF_Analyzer/api/... instead of /api/...
+const API = window.location.pathname.replace(/\/[^/]*$/, '');
 let S = {page:1,ps:50,sort:'score',dir:'desc',q:'',cat:'',amc:'',stars:[],r1:'',r3:'',r5:'',exp:'',aum:'',fundType:''};
 
 // ── SW message helper ──

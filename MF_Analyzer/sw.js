@@ -52,8 +52,13 @@ self.addEventListener('message', e => {
 // ── Fetch intercept ───────────────────────────────────────────────────────────
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
-  if (!url.pathname.startsWith('/api/')) return;   // pass through non-API
-  e.respondWith(handleAPI(e.request, url));
+  // Support both root-deployed (/api/*) and subdirectory-deployed (.../MF_Analyzer/api/*)
+  const apiIdx = url.pathname.indexOf('/api/');
+  if (apiIdx === -1) return;   // pass through non-API requests
+  // Rewrite pathname to always start with /api/ for the router
+  const apiUrl = new URL(url);
+  apiUrl.pathname = url.pathname.slice(apiIdx);
+  e.respondWith(handleAPI(e.request, apiUrl));
 });
 
 // ── JSON response helpers ─────────────────────────────────────────────────────
