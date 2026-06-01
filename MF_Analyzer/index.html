@@ -33,9 +33,9 @@ window._swReady = !('serviceWorker' in navigator) || !!navigator.serviceWorker.c
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-<script src="./idb.js?v=12"></script>
-<script src="./analytics.js?v=12"></script>
-<script src="./fetcher.js?v=12"></script>
+<script src="./idb.js?v=13"></script>
+<script src="./analytics.js?v=13"></script>
+<script src="./fetcher.js?v=13"></script>
 <style>
 :root{
   --c:#F7F5F0;--s:#fff;--b:#E8E4DC;--ink:#1C1917;--mu:#57534E;--sub:#78716C;
@@ -281,7 +281,60 @@ table.ft tr{cursor:pointer;transition:background .1s}
 .cmp-chip button:hover{color:#fff}
 
 @media(max-width:960px){.drw{width:100%}.m-grid{grid-template-columns:repeat(2,1fr)}.chart-row{grid-template-columns:1fr}}
-@media(max-width:700px){.sidebar{display:none}.an-grid{grid-template-columns:1fr}}
+@media(max-width:700px){.an-grid{grid-template-columns:1fr}}
+
+/* ── MOBILE SIDEBAR OVERLAY ── */
+.mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:199}
+.mob-overlay.on{display:block}
+/* On mobile: sidebar is an overlay panel, hidden by default */
+@media(max-width:700px){
+  .sidebar{position:fixed;top:0;left:0;bottom:0;z-index:200;transform:translateX(-100%);transition:transform .25s cubic-bezier(.4,0,.2,1);box-shadow:4px 0 24px rgba(0,0,0,.18)}
+  .sidebar.mob-open{transform:translateX(0)}
+  /* Header compact */
+  .hdr{padding:0 10px;gap:8px;height:48px}
+  .hdr-brand h1{font-size:1rem}
+  .hdr-brand span{display:none}
+  #fundAgePill{display:none!important}
+  .hdr-right{gap:5px}
+  /* Hide less-used desktop nav buttons on very small screens */
+  #btnAnalysis{display:none}
+  /* Compact buttons */
+  .btn{padding:5px 10px;font-size:.75rem}
+  /* Table: hide less critical columns */
+  .ft th:nth-child(8),.ft td:nth-child(8),
+  .ft th:nth-child(9),.ft td:nth-child(9),
+  .ft th:nth-child(10),.ft td:nth-child(10){display:none}
+  /* Tbar wraps */
+  .tbar{flex-wrap:wrap;gap:5px;padding:6px 10px}
+  .tbar-right{margin-left:0;flex-wrap:wrap}
+  /* Analytics toolbar stacks */
+  #anlBulkProgress{flex-wrap:wrap;gap:5px}
+  /* Type tabs smaller */
+  .type-tab{padding:6px 10px;font-size:.72rem}
+  /* Drawer full screen on mobile */
+  .drw{width:100%}
+  /* Pagination compact */
+  .pb{padding:5px 8px;font-size:.72rem}
+  .pg{padding:8px 10px}
+}
+
+/* ── DOWNLOAD PROGRESS CARD ── */
+/* Shown at the bottom on all screens during any download */
+.dl-prog{position:fixed;bottom:0;left:0;right:0;z-index:400;background:var(--a);color:#fff;padding:10px 16px 14px;border-radius:14px 14px 0 0;box-shadow:0 -4px 24px rgba(15,118,110,.3);display:none;flex-direction:column;gap:8px;pointer-events:all}
+.dl-prog.on{display:flex}
+.dl-prog-hdr{display:flex;align-items:center;gap:8px;font-size:.8rem;font-weight:700}
+.dl-prog-hdr .spinner{width:14px;height:14px;border-color:rgba(255,255,255,.35);border-top-color:#fff;flex-shrink:0}
+.dl-prog-label{flex:1}
+.dl-prog-pct{font-size:.75rem;font-weight:600;opacity:.9}
+.dl-prog-track{background:rgba(255,255,255,.25);height:5px;border-radius:3px;overflow:hidden}
+.dl-prog-fill{height:100%;background:#fff;border-radius:3px;transition:width .5s ease}
+.dl-prog-detail{font-size:.7rem;opacity:.8;display:flex;align-items:center;justify-content:space-between}
+.dl-prog-stop{background:rgba(255,255,255,.2);border:none;color:#fff;font-size:.72rem;font-weight:600;padding:3px 10px;border-radius:6px;cursor:pointer}
+.dl-prog-stop:hover{background:rgba(255,255,255,.3)}
+/* On desktop: compact pill in bottom-right corner */
+@media(min-width:701px){
+  .dl-prog{left:auto;right:20px;bottom:20px;border-radius:12px;max-width:320px;box-shadow:0 4px 20px rgba(15,118,110,.4)}
+}
 
 /* ── ENTITY DETAIL MODAL ── */
 .edm-ov{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;opacity:0;pointer-events:none;transition:opacity .2s}
@@ -353,9 +406,24 @@ table.ft tr{cursor:pointer;transition:background .1s}
 </head>
 <body>
 
-<!-- GLOBAL FETCH PROGRESS -->
+<!-- GLOBAL FETCH PROGRESS (top bar, desktop) -->
 <div class="gfp" id="gfp"><div class="gfp-bar" id="gfpBar" style="width:0%"></div></div>
 <div class="gfp-pill" id="gfpPill"><div class="spinner"></div><span id="gfpTxt"></span></div>
+<!-- DOWNLOAD PROGRESS CARD (bottom, all screens) -->
+<div class="dl-prog" id="dlProg">
+  <div class="dl-prog-hdr">
+    <div class="spinner"></div>
+    <span class="dl-prog-label" id="dlProgLabel">Downloading…</span>
+    <span class="dl-prog-pct" id="dlProgPct"></span>
+  </div>
+  <div class="dl-prog-track"><div class="dl-prog-fill" id="dlProgFill" style="width:0%"></div></div>
+  <div class="dl-prog-detail">
+    <span id="dlProgDetail"></span>
+    <button class="dl-prog-stop" id="dlProgStop" style="display:none" onclick="_dlProgStopClick()">■ Stop</button>
+  </div>
+</div>
+<!-- MOBILE SIDEBAR OVERLAY -->
+<div class="mob-overlay" id="mobOverlay" onclick="_mobFilterClose()"></div>
 
 <!-- HEADER -->
 <header class="hdr">
@@ -367,10 +435,11 @@ table.ft tr{cursor:pointer;transition:background .1s}
   <div class="hdr-right">
     <span class="pill" id="totalPill">— funds</span>
     <span id="fundAgePill" style="font-size:.68rem;color:var(--sub);display:none"></span>
+    <button class="btn btn-sec" id="btnMobFilter" onclick="_mobFilterToggle()" title="Filters" style="display:none;padding:5px 10px">⚙ Filters</button>
     <button class="btn btn-sec" onclick="toggleView('analytics')" id="btnAnalytics">🔬 Analytics</button>
     <button class="btn btn-sec" onclick="toggleView('analysis')" id="btnAnalysis">📊 Analysis</button>
     <button class="btn btn-pri" id="btnRefresh" onclick="refreshData()">↻ Refresh</button>
-    <button class="btn btn-sec" onclick="openSetup()" title="Setup: proxy, SAL headers, import/export" style="padding:6px 10px">⚙</button>
+    <button class="btn btn-sec" onclick="openSetup()" title="Setup" style="padding:6px 10px">⚙</button>
   </div>
 </header>
 
@@ -1670,11 +1739,18 @@ function _setBulkUI(running, pct, txt, stopped) {
   if(lpBar) lpBar.style.width = pct + '%';
   if(lpTxt) lpTxt.textContent = txt;
 
-  // Global top bar + pill
+  // Global top bar + pill (desktop)
   document.getElementById('gfpBar').style.width = running ? pct+'%' : '0%';
   const pill = document.getElementById('gfpPill');
   pill.style.display = running ? 'flex' : 'none';
   document.getElementById('gfpTxt').textContent = txt;
+
+  // Download progress card (all screens)
+  if (running) {
+    _showDlProgress('Fetching holdings data…', pct, txt, true);
+  } else {
+    _hideDlProgress();
+  }
 }
 
 let _anlRefreshTimer = null;
@@ -2541,7 +2617,7 @@ async function refreshData() {
   btn.innerHTML = '<span class="ico-spin">↻</span> Refreshing…'; btn.disabled = true;
   const r = await api('/api/funds/refresh', { method: 'POST' });
   if (!r) { btn.innerHTML = '↻ Refresh'; btn.disabled = false; return; }
-  toast('Fetching fund list from Morningstar…');
+  _showDlProgress('Downloading fund list…', 0, '');
   const deadline = Date.now() + 3 * 60 * 1000; // 3 min timeout
   let _lastRenderedAt = 0;
   const t = setInterval(async () => {
@@ -2549,13 +2625,16 @@ async function refreshData() {
     const timedOut = Date.now() > deadline;
     if (!s?.running || timedOut) {
       clearInterval(t); btn.innerHTML = '↻ Refresh'; btn.disabled = false;
+      _hideDlProgress();
       if (timedOut && s?.running) toast('Refresh timed out — check proxy at ⚙');
       else if (s?.error) toast('Fetch failed: ' + s.error);
       else { toast(`Done — ${(s?.fetched||0).toLocaleString()} funds loaded`); }
       _swMsg('INVALIDATE_FUNDS'); await loadMeta(); await applyFlt(); loadTypeCounts(); document.getElementById('welcomeBanner')?.remove();
     } else {
-      const progress = s.total ? ` (${s.fetched}/${s.total})` : '';
-      btn.innerHTML = `<span class="ico-spin">↻</span> Fetching${progress}…`;
+      const pct = s.total ? Math.round(s.fetched / s.total * 100) : 0;
+      const det  = s.total ? `${s.fetched.toLocaleString()} / ${s.total.toLocaleString()} funds` : `${s.fetched||0} fetched`;
+      btn.innerHTML = `<span class="ico-spin">↻</span> ${pct}%…`;
+      _showDlProgress('Downloading fund list…', pct, det);
       // Refresh table every ~10 seconds while download is in progress
       if (s.fetched > 0 && Date.now() - _lastRenderedAt > 10000) {
         _lastRenderedAt = Date.now();
@@ -2592,6 +2671,52 @@ function xe(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 function avg(a){ return a.length?a.reduce((x,y)=>x+y,0)/a.length:0; }
 function riskLbl(r){ return r==null?'—':({1:'Low',2:'Below Avg',3:'Average',4:'Above Avg',5:'High'}[r]||r); }
 function toast(msg){ const el=document.getElementById('toast');el.textContent=msg;el.classList.add('on');setTimeout(()=>el.classList.remove('on'),4200); }
+
+// ── Download progress card helpers ──────────────────────────────────────────
+let _dlProgStopCb = null;
+function _showDlProgress(label, pct, detail, showStop) {
+  const el = document.getElementById('dlProg');
+  if (!el) return;
+  el.classList.add('on');
+  document.getElementById('dlProgLabel').textContent  = label;
+  document.getElementById('dlProgPct').textContent    = pct > 0 ? pct + '%' : '';
+  document.getElementById('dlProgFill').style.width   = pct + '%';
+  document.getElementById('dlProgDetail').textContent = detail || '';
+  const stopBtn = document.getElementById('dlProgStop');
+  if (stopBtn) stopBtn.style.display = showStop ? '' : 'none';
+}
+function _hideDlProgress() {
+  const el = document.getElementById('dlProg');
+  if (el) el.classList.remove('on');
+}
+function _dlProgStopClick() { if (typeof bulkStop === 'function') bulkStop(); }
+
+// ── Mobile sidebar helpers ──────────────────────────────────────────────────
+function _mobFilterToggle() {
+  const sb = document.querySelector('.sidebar:not([style*="display:none"])');
+  if (!sb) return;
+  const isOpen = sb.classList.contains('mob-open');
+  isOpen ? _mobFilterClose() : _mobFilterOpen();
+}
+function _mobFilterOpen() {
+  const sb = document.querySelector('.sidebar:not([style*="display:none"])');
+  if (sb) sb.classList.add('mob-open');
+  document.getElementById('mobOverlay').classList.add('on');
+  document.body.style.overflow = 'hidden';
+}
+function _mobFilterClose() {
+  document.querySelectorAll('.sidebar').forEach(s => s.classList.remove('mob-open'));
+  document.getElementById('mobOverlay').classList.remove('on');
+  document.body.style.overflow = '';
+}
+
+// Show/hide the mobile filter button based on viewport width
+function _updateMobFilterBtn() {
+  const btn = document.getElementById('btnMobFilter');
+  if (btn) btn.style.display = window.innerWidth <= 700 ? '' : 'none';
+}
+window.addEventListener('resize', _updateMobFilterBtn);
+_updateMobFilterBtn();
 
 // Only run init if SW is already controlling this page.
 // If not ready yet (hard refresh / first visit), the controllerchange handler above will call init().
