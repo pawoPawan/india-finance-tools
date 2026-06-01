@@ -638,18 +638,22 @@ function _updateCatDropdown(type) {
 let _dbt = null, _curFund = null, _holdData = null, _activeTab = 'overview';
 let _charts = {};
 
+// ── Proxy — hardcoded; no user configuration required ──
+const PROXY_URL = 'https://mf-proxy.pawkumar.workers.dev';
+
 // ── Init ──
 let _allCats = [];
 
 async function init() {
-  // Load proxy URL into fetcher on startup
-  const cfg = await api('/api/config/proxy').catch(() => null);
-  if (cfg?.proxy) MFfetcher.setProxy(cfg.proxy);
+  // Proxy is hardcoded — no user config needed
+  MFfetcher.setProxy(PROXY_URL);
+  // Also persist it for SW route usage
+  api('/api/config/proxy', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ proxy: PROXY_URL }) }).catch(()=>{});
 
   const fundCount = await MFidb.getFundCount();
   if (!fundCount) {
-    // First run: show setup immediately
-    openSetup(true);
+    // First run: show welcome banner and auto-start download
+    _showWelcomeBanner();
   }
 
   await loadMeta();
@@ -658,6 +662,27 @@ async function init() {
   checkBulkStatus();
   const hash = window.location.hash.replace('#','');
   if(hash === 'analytics' || hash === 'analysis') toggleView(hash);
+}
+
+function _showWelcomeBanner() {
+  // Show a dismissible welcome banner at top of fund list, prompting first data download
+  const existing = document.getElementById('welcomeBanner');
+  if (existing) return;
+  const banner = document.createElement('div');
+  banner.id = 'welcomeBanner';
+  banner.style.cssText = 'background:var(--as);border:1px solid #99F6E4;border-radius:10px;padding:16px 18px;margin:16px 16px 0;font-size:.85rem;color:var(--ink);display:flex;align-items:center;gap:12px;flex-wrap:wrap';
+  banner.innerHTML = `
+    <span style="font-size:1.4rem">👋</span>
+    <div style="flex:1;min-width:0">
+      <div style="font-weight:700;margin-bottom:4px">Welcome to MF Analyzer</div>
+      <div style="color:var(--mu)">No fund data yet. Click <b>↻ Refresh</b> to download 13,000+ Indian mutual funds from Morningstar. Takes about 30 seconds.</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-shrink:0">
+      <button class="btn btn-pri" onclick="document.getElementById('welcomeBanner').remove();refreshData()">↻ Download Fund List</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('welcomeBanner').remove()" title="Dismiss">✕</button>
+    </div>`;
+  const main = document.querySelector('.main') || document.querySelector('#fundList') || document.body;
+  main.prepend(banner);
 }
 
 // ── Setup modal ───────────────────────────────────────────────────────────────
@@ -677,12 +702,10 @@ async function renderSetup(firstRun = false) {
   const body = document.getElementById('setupBody');
   body.innerHTML = '<div class="loader"><div class="spinner"></div> Loading…</div>';
 
-  const [cfg, fundCount, holdingCount] = await Promise.all([
-    api('/api/config/proxy').catch(() => ({})),
+  const [fundCount, holdingCount] = await Promise.all([
     MFidb.getFundCount(),
     MFidb.getHoldingCount(),
   ]);
-  const proxy = cfg?.proxy || '';
 
   const metaEl = document.getElementById('setupMetaLine');
   if (metaEl) metaEl.innerHTML = `<span>${fundCount.toLocaleString()} funds · ${holdingCount.toLocaleString()} holdings cached</span>`;
@@ -692,23 +715,10 @@ async function renderSetup(firstRun = false) {
       👋 Welcome! Follow these steps to get started.
     </div>` : ''}
 
-    <!-- Step 1: Proxy -->
-    <div class="setup-section">
-      <h4>Step 1 — Cloudflare Worker Proxy URL</h4>
-      <p style="font-size:.77rem;color:var(--mu);margin-bottom:10px">
-        Deploy <code style="background:var(--c);padding:1px 5px;border-radius:4px">proxy.js</code> as a Cloudflare Worker
-        and paste the URL here. This proxies Morningstar API calls to bypass CORS.
-      </p>
-      <div class="setup-row">
-        <input type="url" id="setupProxy" class="fi" placeholder="https://mf-proxy.YOUR.workers.dev" value="${xe(proxy)}">
-        <button class="btn btn-pri" onclick="_setupSaveProxy()">Save</button>
-      </div>
-      <div id="setupProxyStatus"></div>
-    </div>
-
+    <!-- Data download -->
     <!-- Step 2: Refresh fund list -->
     <div class="setup-section">
-      <h4>Step 2 — Load Fund List</h4>
+      <h4>Fund List</h4>
       <p style="font-size:.77rem;color:var(--mu);margin-bottom:10px">
         Download the list of ~13,000 Indian mutual funds from Morningstar.
         ${fundCount ? `<span style="color:var(--g);font-weight:600">✓ ${fundCount.toLocaleString()} funds already loaded.</span>` : '<span style="color:var(--am);font-weight:600">No funds loaded yet.</span>'}
@@ -718,7 +728,7 @@ async function renderSetup(firstRun = false) {
 
     <!-- Step 3: SAL headers (optional fallback) -->
     <div class="setup-section">
-      <h4>Step 3 — SAL API Headers (if auto-auth fails)</h4>
+      <h4>SAL API Headers (if auto-auth fails)</h4>
       <p style="font-size:.77rem;color:var(--mu);margin-bottom:10px">
         The app tries to auto-authenticate with Morningstar. If bulk fetch fails with auth errors,
         open DevTools on <a href="https://www.morningstar.in" target="_blank" style="color:var(--a)">morningstar.in</a>,
@@ -1013,18 +1023,14 @@ async function openDrawer(secId) {
   // Try IDB first (fast path)
   let h = await api(`/api/holdings/${encodeURIComponent(secId)}`);
 
-  // If not cached, try live fetch via proxy (requires proxy + SAL headers configured)
+  // If not cached, fetch live via proxy
   if (!h) {
     document.getElementById('drwBody').innerHTML = '<div class="loader"><div class="spinner"></div> Fetching from Morningstar…</div>';
-    const proxyConfig = await api('/api/config/proxy');
-    if (proxyConfig?.proxy) {
-      MFfetcher.setProxy(proxyConfig.proxy);
-      h = await api(`/api/holdings/fetch/${encodeURIComponent(secId)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: fund?.name || secId }),
-      });
-    }
+    h = await api(`/api/holdings/fetch/${encodeURIComponent(secId)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: fund?.name || secId }),
+    });
   }
 
   _holdData = h;
@@ -1519,14 +1525,6 @@ async function bulkFetch() {
   if (_bulkRunning) { toast('Bulk fetch already running'); return; }
   const btn = document.getElementById('anlFetchAllBtn');
   btn.disabled = true;
-
-  // Ensure proxy is configured
-  const cfg = await api('/api/config/proxy');
-  if (!cfg?.proxy) {
-    btn.disabled = false;
-    toast('Configure proxy URL in ⚙ Setup first'); openSetup(); return;
-  }
-  MFfetcher.setProxy(cfg.proxy);
 
   // Get SAL headers (auto-fetches JWT if needed)
   let hdrs = await MFfetcher.getSALHeaders().catch(() => null);
@@ -2520,13 +2518,6 @@ function renderBestByCat(funds) {
 async function refreshData() {
   const btn = document.getElementById('btnRefresh');
   btn.innerHTML = '<span class="ico-spin">↻</span> Refreshing…'; btn.disabled = true;
-  // First ensure proxy is configured
-  const cfg = await api('/api/config/proxy');
-  if (!cfg?.proxy) {
-    btn.innerHTML = '↻ Refresh'; btn.disabled = false;
-    toast('Configure proxy URL in ⚙ Setup first');
-    openSetup(); return;
-  }
   const r = await api('/api/funds/refresh', { method: 'POST' });
   if (!r) { btn.innerHTML = '↻ Refresh'; btn.disabled = false; return; }
   toast('Fetching fund list from Morningstar…');

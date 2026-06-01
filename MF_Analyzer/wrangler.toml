@@ -1,0 +1,4 @@
+name = "mf-proxy"
+main = "proxy.js"
+compatibility_date = "2024-01-01"
+workers_dev = true
