@@ -12,7 +12,7 @@
  */
 
 'use strict';
-importScripts('./idb.js?v=8', './analytics.js?v=8', './fetcher.js?v=8');
+importScripts('./idb.js?v=9', './analytics.js?v=9', './fetcher.js?v=9');
 
 // ── In-memory caches (cleared on SW restart) ─────────────────────────────────
 let _fundsCache   = null;   // Array<fund>  — loaded from IDB
@@ -52,6 +52,8 @@ self.addEventListener('message', e => {
 // ── Fetch intercept ───────────────────────────────────────────────────────────
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
+  // Only intercept same-origin requests — never hijack calls to mf-proxy-pages.pages.dev etc.
+  if (url.origin !== self.location.origin) return;
   // Support both root-deployed (/api/*) and subdirectory-deployed (.../MF_Analyzer/api/*)
   const apiIdx = url.pathname.indexOf('/api/');
   if (apiIdx === -1) return;   // pass through non-API requests
