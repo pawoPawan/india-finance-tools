@@ -12,7 +12,7 @@
  */
 
 'use strict';
-importScripts('./idb.js?v=9', './analytics.js?v=9', './fetcher.js?v=9');
+importScripts('./idb.js?v=10', './analytics.js?v=10', './fetcher.js?v=10');
 
 // ── In-memory caches (cleared on SW restart) ─────────────────────────────────
 let _fundsCache   = null;   // Array<fund>  — loaded from IDB
@@ -276,7 +276,7 @@ async function handleAPI(req, url) {
     }
 
     // ── Securities autocomplete ───────────────────────────────────────────────
-    if (p === '/api/securities' && m === 'GET') {
+    if ((p === '/api/securities' || p === '/api/analytics/securities') && m === 'GET') {
       const q    = (sp.get('q') || '').toLowerCase();
       const type = sp.get('type') || 'equity';
       const idx  = await _getSecIndex();
