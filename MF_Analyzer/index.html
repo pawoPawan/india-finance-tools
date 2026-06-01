@@ -645,10 +645,9 @@ const PROXY_URL = 'https://mf-proxy.pawkumar.workers.dev';
 let _allCats = [];
 
 async function init() {
-  // Proxy is hardcoded — no user config needed
+  // Proxy is hardcoded — save to IDB so SW can read it, then set in fetcher
   MFfetcher.setProxy(PROXY_URL);
-  // Also persist it for SW route usage
-  api('/api/config/proxy', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ proxy: PROXY_URL }) }).catch(()=>{});
+  await api('/api/config/proxy', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ proxy: PROXY_URL }) });
 
   const fundCount = await MFidb.getFundCount();
   if (!fundCount) {
@@ -2521,12 +2520,18 @@ async function refreshData() {
   const r = await api('/api/funds/refresh', { method: 'POST' });
   if (!r) { btn.innerHTML = '↻ Refresh'; btn.disabled = false; return; }
   toast('Fetching fund list from Morningstar…');
+  const deadline = Date.now() + 3 * 60 * 1000; // 3 min timeout
   const t = setInterval(async () => {
     const s = await api('/api/funds/refresh-status');
-    if (!s?.running) {
+    const timedOut = Date.now() > deadline;
+    if (!s?.running || timedOut) {
       clearInterval(t); btn.innerHTML = '↻ Refresh'; btn.disabled = false;
-      if (s?.error) toast('Error: ' + s.error);
-      else { toast(`Done — ${(s?.fetched||0).toLocaleString()} funds loaded`); _swMsg('INVALIDATE_FUNDS'); await loadMeta(); await applyFlt(); loadTypeCounts(); }
+      if (timedOut && s?.running) toast('Refresh timed out — check proxy at ⚙');
+      else if (s?.error) toast('Fetch failed: ' + s.error);
+      else { toast(`Done — ${(s?.fetched||0).toLocaleString()} funds loaded`); _swMsg('INVALIDATE_FUNDS'); await loadMeta(); await applyFlt(); loadTypeCounts(); document.getElementById('welcomeBanner')?.remove(); }
+    } else {
+      const progress = s.total ? ` (${s.fetched}/${s.total})` : '';
+      btn.innerHTML = `<span class="ico-spin">↻</span> Fetching${progress}…`;
     }
   }, 2500);
 }
@@ -2537,9 +2542,12 @@ async function api(url,opts={}) {
     const r=await fetch(API+url,opts);
     if(r.ok) return r.json();
     const err=await r.json().catch(()=>null);
-    if(err?.error) toast('Server error: '+err.error);
+    toast('Error: '+(err?.error||`HTTP ${r.status} on ${url}`));
     return null;
-  }catch{return null;}
+  }catch(e){
+    toast('Network error: '+(e.message||'Could not reach service worker. Try reloading.'));
+    return null;
+  }
 }
 function pct(v){ return v==null?'—':(v>0?'+':'')+v.toFixed(1)+'%'; }
 function rc(v){ return v==null?'rz':v>0?'rp':v<0?'rn':'rz'; }
