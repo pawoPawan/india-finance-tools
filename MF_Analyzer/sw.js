@@ -12,7 +12,7 @@
  */
 
 'use strict';
-importScripts('./idb.js?v=6', './analytics.js?v=6', './fetcher.js?v=6');
+importScripts('./idb.js?v=7', './analytics.js?v=7', './fetcher.js?v=7');
 
 // ── In-memory caches (cleared on SW restart) ─────────────────────────────────
 let _fundsCache   = null;   // Array<fund>  — loaded from IDB
@@ -193,8 +193,7 @@ async function handleAPI(req, url) {
       const secId = decodeURIComponent(p.slice('/api/holdings/'.length));
       if (!secId) return apiErr('Missing secId', 400);
       const data = await MFidb.getHolding(secId);
-      if (!data) return apiErr('Not found', 404);
-      return json(data);
+      return json(data || null);   // null = not cached yet, caller fetches live
     }
 
     // Fetch (or refresh) full holdings for a single fund — called by fund detail drawer

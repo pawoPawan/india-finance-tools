@@ -24,9 +24,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-<script src="./idb.js?v=6"></script>
-<script src="./analytics.js?v=6"></script>
-<script src="./fetcher.js?v=6"></script>
+<script src="./idb.js?v=7"></script>
+<script src="./analytics.js?v=7"></script>
+<script src="./fetcher.js?v=7"></script>
 <style>
 :root{
   --c:#F7F5F0;--s:#fff;--b:#E8E4DC;--ink:#1C1917;--mu:#57534E;--sub:#78716C;
@@ -1041,9 +1041,9 @@ async function openDrawer(secId) {
       document.getElementById('drwSub').innerHTML = buildSubLine({ category: h.category, amc: h.amc, secId, legalName: h.legalName, name: h.name });
     }
     setTabBadges(
-      h.numberOfEquityHolding || (h.equityHoldings||[]).length,
-      h.numberOfBondHolding   || (h.bondHoldings||[]).length,
-      h.numberOfOtherHolding  || (h.otherHoldings||[]).length
+      h._salUnavailable ? '?' : (h.numberOfEquityHolding || (h.equityHoldings||[]).length),
+      h._salUnavailable ? '?' : (h.numberOfBondHolding   || (h.bondHoldings||[]).length),
+      h._salUnavailable ? '?' : (h.numberOfOtherHolding  || (h.otherHoldings||[]).length)
     );
     _swMsg('INVALIDATE_ANALYTICS');
   }
