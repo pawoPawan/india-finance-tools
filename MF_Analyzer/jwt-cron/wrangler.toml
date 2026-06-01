@@ -1,0 +1,11 @@
+name = "mf-jwt-cron"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+workers_dev = true
+
+[triggers]
+crons = ["0 * * * *"]
+
+[[kv_namespaces]]
+binding = "MF_CACHE"
+id = "2474d9dec05744f190431eec052314ac"

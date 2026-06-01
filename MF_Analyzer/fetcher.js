@@ -59,10 +59,29 @@ var MFfetcher = (function () {
 
   async function getJWT(force = false) {
     if (!force && _jwt && Date.now() - _jwtTs < JWT_TTL) return _jwt;
+
+    // 1. Check IDB cache
     const cached = await MFidb.getConfig('jwt');
     if (!force && cached && (Date.now() - cached.ts) < JWT_TTL) {
       _jwt = cached.token; _jwtTs = cached.ts; return _jwt;
     }
+
+    // 2. Fetch from proxy /api/jwt endpoint (KV-cached, fast, refreshed hourly by cron)
+    try {
+      if (_proxyUrl) {
+        const r = await fetch(`${_proxyUrl}/api/jwt`);
+        if (r.ok) {
+          const d = await r.json();
+          if (d.token) {
+            _jwt = d.token; _jwtTs = d.ts || Date.now();
+            await MFidb.setConfig('jwt', { token: _jwt, ts: _jwtTs });
+            return _jwt;
+          }
+        }
+      }
+    } catch (_) {}
+
+    // 3. Fallback: scrape screener page HTML via proxy
     const html = await (await fetch(_proxied(SCREENER_PAGE), { headers: BASE_HDRS })).text();
     const m = html.match(/id="hfApiToken"[^>]+value="([^"]+)"/);
     if (!m || !m[1]) throw new Error('Could not extract JWT from Morningstar screener page. Check proxy.');
