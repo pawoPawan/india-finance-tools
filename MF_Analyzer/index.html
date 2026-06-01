@@ -1660,16 +1660,16 @@ function _setBulkUI(running, pct, txt, stopped) {
 let _anlRefreshTimer = null;
 
 function _scheduleAnlRefresh() {
-  // Refresh analytics view every 5s while bulk fetch is running
+  // Refresh analytics view every 10s while bulk fetch is running
   if(_anlRefreshTimer) return;
   _anlRefreshTimer = setInterval(async () => {
-    if(!_bulkPoll) { clearInterval(_anlRefreshTimer); _anlRefreshTimer = null; return; }
+    if(!_bulkRunning) { clearInterval(_anlRefreshTimer); _anlRefreshTimer = null; return; }
     const d = await api('/api/analytics');
     if(d) {
       _anlData = d;
       if(document.getElementById('vAnalytics').style.display !== 'none') { _renderAnlView(); _renderAnlSidebar(); }
     }
-  }, 5000);
+  }, 10000);
 }
 
 // startBulkPoll is a no-op in the static version; bulk runs in-page via bulkFetch()
