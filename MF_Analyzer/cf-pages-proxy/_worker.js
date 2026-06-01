@@ -7,7 +7,10 @@
  * KV binding: MF_CACHE (set in Cloudflare dashboard or wrangler.toml)
  */
 
-const SCREENER_PAGE = 'https://www.morningstar.in/tools/ECFundscreener.aspx';
+const SCREENER_PAGE  = 'https://www.morningstar.in/tools/ECFundscreener.aspx';
+// Any live Morningstar India fund page works — we just need the meta accessToken/realTimeToken
+const SAL_FUND_PAGE  = 'https://www.morningstar.in/mutualfunds/F00001GP7E/360-one-balanced-hybrid-fund-regular-growth/overview.aspx';
+const SAL_CONTENT_TYPE_PREMIUM = 'nNsGdN3REOnPMlKDShOYjlk6VYiEVLSdpfpXAm7o2Tk=';
 
 const ALLOWED_DOMAINS = [
   'morningstar.com', 'morningstar.in',
@@ -63,6 +66,47 @@ export default {
         return new Response(JSON.stringify({ token: payload.token, ts: payload.ts }), {
           headers: { 'Content-Type': 'application/json', ...CORS },
         });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500, headers: { 'Content-Type': 'application/json', ...CORS },
+        });
+      }
+    }
+
+    // ── SAL token endpoint — scraped from Morningstar India fund page meta tags ─
+    if (url.pathname === '/api/sal-token') {
+      try {
+        let payload = env?.MF_CACHE ? await env.MF_CACHE.get('sal_token', 'json') : null;
+        const age = payload ? Date.now() - payload.ts : Infinity;
+
+        if (!payload || age > 55 * 60 * 1000) {
+          const html = await fetch(SAL_FUND_PAGE, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+              'Accept': 'text/html,application/xhtml+xml',
+            },
+          }).then(r => r.text());
+
+          const mAccess   = html.match(/name="accessToken"\s+content="([^"]+)"/);
+          const mRealtime = html.match(/name="realTimeToken"\s+content="([^"]+)"/);
+          if (mAccess?.[1]) {
+            payload = { token: mAccess[1], realtime: mRealtime?.[1] || '', ts: Date.now() };
+            if (env?.MF_CACHE)
+              await env.MF_CACHE.put('sal_token', JSON.stringify(payload), { expirationTtl: 14400 });
+          }
+        }
+
+        if (!payload?.token)
+          return new Response(JSON.stringify({ error: 'SAL token unavailable' }), {
+            status: 503, headers: { 'Content-Type': 'application/json', ...CORS },
+          });
+
+        return new Response(JSON.stringify({
+          token: payload.token,
+          realtime: payload.realtime,
+          contentType: SAL_CONTENT_TYPE_PREMIUM,
+          ts: payload.ts,
+        }), { headers: { 'Content-Type': 'application/json', ...CORS } });
       } catch (e) {
         return new Response(JSON.stringify({ error: e.message }), {
           status: 500, headers: { 'Content-Type': 'application/json', ...CORS },

@@ -91,8 +91,11 @@ var MFfetcher = (function () {
   }
 
   // ── SAL headers ───────────────────────────────────────────────────────────
-  // SAL API uses the same Bearer JWT as the screener in many cases.
-  // If that fails (401), we surface a manual-paste UI.
+  // SAL token comes from <meta name="accessToken"> on the Morningstar India fund
+  // overview page — an anonymous service-account token with SAL.Service data role.
+  // Cached hourly in Cloudflare KV by the cron worker; served via /api/sal-token.
+
+  const SAL_CONTENT_TYPE = 'nNsGdN3REOnPMlKDShOYjlk6VYiEVLSdpfpXAm7o2Tk=';
 
   async function getSALHeaders(force = false) {
     if (!force && _salHeaders && Date.now() - _salTs < SAL_HDR_TTL) return _salHeaders;
@@ -103,17 +106,29 @@ var MFfetcher = (function () {
       _salHeaders = cached.headers; _salTs = cached.ts || 0; return _salHeaders;
     }
 
-    // Build headers directly from the screener JWT — no test call needed.
-    // If the token is stale the first real SAL request will 401 and retry with a fresh JWT.
+    // Fetch SAL token from proxy /api/sal-token (KV-cached, refreshed hourly by cron)
     try {
-      const jwt  = await getJWT(force);
-      const hdrs = { ...BASE_HDRS, 'Authorization': `Bearer ${jwt}`, 'x-sal-clientid': 'RSIN_SAL' };
-      _salHeaders = hdrs; _salTs = Date.now();
-      await MFidb.setConfig('sal_headers', { headers: _salHeaders, ts: _salTs });
-      return _salHeaders;
+      if (_proxyUrl) {
+        const r = await fetch(`${_proxyUrl}/api/sal-token`);
+        if (r.ok) {
+          const d = await r.json();
+          if (d.token) {
+            const hdrs = {
+              ...BASE_HDRS,
+              'Authorization':    `Bearer ${d.token}`,
+              'x-sal-clientid':   'RSIN_SAL',
+              'x-sal-contenttype': d.contentType || SAL_CONTENT_TYPE,
+              ...(d.realtime ? { 'x-api-realtime-e': d.realtime } : {}),
+            };
+            _salHeaders = hdrs; _salTs = d.ts || Date.now();
+            await MFidb.setConfig('sal_headers', { headers: _salHeaders, ts: _salTs });
+            return _salHeaders;
+          }
+        }
+      }
     } catch (_) {}
 
-    // Fall back to stale cache if JWT fetch failed
+    // Fall back to stale IDB cache
     if (cached && cached.headers) {
       _salHeaders = cached.headers; _salTs = cached.ts || 0; return _salHeaders;
     }
@@ -136,12 +151,12 @@ var MFfetcher = (function () {
     const headers = hdrs || await getSALHeaders();
     if (!headers) throw new Error('SAL headers unavailable. Paste them from DevTools in Setup.');
     const url = _salUrl(path, extra);
-    // Direct browser call — SAL API has CORS:* and residential IPs bypass Morningstar WAF
-    let resp = await fetch(url, { headers });
+    // Route through proxy — proxy injects Origin/Referer headers that browsers can't set manually
+    let resp = await fetch(_proxied(url), { headers });
     if (resp.status === 401) {
       // Try refreshing SAL headers once
       const fresh = await getSALHeaders(true);
-      if (fresh) resp = await fetch(url, { headers: fresh });
+      if (fresh) resp = await fetch(_proxied(url), { headers: fresh });
     }
     if (!resp.ok) throw new Error(`SAL ${resp.status} for ${path}`);
     return resp.json();
