@@ -1,0 +1,19 @@
+# Large data files generated at runtime — not for version control
+anl_cache.json
+holdings_cache.json
+mf_data.json
+mf_data.csv
+mf_analysis.xlsx
+captured_api_calls.json
+
+# Credentials
+sal_headers.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+
+# macOS
+.DS_Store

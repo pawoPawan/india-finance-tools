@@ -1,0 +1,2568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MF Analyzer · India</title>
+<!-- Service Worker: register early so API calls are intercepted from first load -->
+<script>
+(function(){
+  if(!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.register('./sw.js').then(function(reg){
+    // First visit: no controller yet → show splash until SW takes control then reload
+    if(!navigator.serviceWorker.controller){
+      var s=document.createElement('div');
+      s.id='swSplash';
+      s.style.cssText='position:fixed;inset:0;background:#F7F5F0;z-index:9999;display:flex;align-items:center;justify-content:center;gap:14px;font-family:system-ui';
+      s.innerHTML='<style>@keyframes sw-spin{to{transform:rotate(360deg)}}</style><div style="width:26px;height:26px;border:3px solid #E8E4DC;border-top-color:#0F766E;border-radius:50%;animation:sw-spin .7s linear infinite"></div><span style="color:#57534E;font-size:.88rem">Setting up MF Analyzer…</span>';
+      document.body?document.body.prepend(s):document.addEventListener('DOMContentLoaded',function(){document.body.prepend(s);});
+      navigator.serviceWorker.addEventListener('controllerchange',function(){location.reload();});
+    }
+  }).catch(function(e){console.warn('SW registration failed:',e);});
+})();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="./idb.js"></script>
+<script src="./analytics.js"></script>
+<script src="./fetcher.js"></script>
+<style>
+:root{
+  --c:#F7F5F0;--s:#fff;--b:#E8E4DC;--ink:#1C1917;--mu:#57534E;--sub:#78716C;
+  --a:#0F766E;--ah:#0D5F58;--as:#CCFBF1;
+  --g:#15803D;--gb:#DCFCE7;--am:#B45309;--ab:#FEF3C7;--r:#B91C1C;--rb:#FEE2E2;
+  --bl:#1D4ED8;--blb:#DBEAFE;--pu:#6D28D9;--pub:#EDE9FE;
+  --rad:10px;--rad-l:14px;
+  --sh:0 1px 3px rgba(28,25,23,.07);--sh-m:0 4px 16px rgba(28,25,23,.12);
+  --fd:'Fraunces',Georgia,serif;--fu:'IBM Plex Sans',system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--fu);background:var(--c);color:var(--ink);-webkit-font-smoothing:antialiased;display:flex;flex-direction:column}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:#ccc;border-radius:3px}
+button,select,input{font-family:var(--fu)}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+
+/* ── HEADER ── */
+.hdr{background:var(--s);border-bottom:1px solid var(--b);padding:0 20px;height:52px;display:flex;align-items:center;gap:16px;flex-shrink:0;box-shadow:var(--sh)}
+.hdr-brand{display:flex;align-items:baseline;gap:8px;flex-shrink:0}
+.hdr-brand h1{font-family:var(--fd);font-size:1.25rem;font-weight:600;letter-spacing:-.025em}
+.hdr-brand span{font-size:.72rem;color:var(--mu);font-weight:500}
+.hdr-right{display:flex;align-items:center;gap:8px;margin-left:auto}
+.pill{background:var(--as);color:var(--a);font-size:.72rem;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap}
+.pill.amber{background:var(--ab);color:var(--am)}
+.btn{padding:6px 13px;border-radius:8px;border:none;font-size:.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:all .15s;white-space:nowrap}
+.btn-pri{background:var(--a);color:#fff}.btn-pri:hover{background:var(--ah)}
+.btn-sec{background:transparent;border:1.5px solid var(--b);color:var(--ink)}.btn-sec:hover{border-color:var(--a);color:var(--a)}
+.btn-ghost{background:none;border:none;color:var(--mu);padding:5px 8px}.btn-ghost:hover{color:var(--ink);background:var(--c)}
+.btn[disabled]{opacity:.45;cursor:default}
+.ico-spin{animation:spin .7s linear infinite;display:inline-block}
+
+/* ── LAYOUT ── */
+.layout{display:flex;flex:1;overflow:hidden}
+
+/* ── SIDEBAR ── */
+.sidebar{width:256px;background:var(--s);border-right:1px solid var(--b);overflow-y:auto;flex-shrink:0;display:flex;flex-direction:column}
+.sb-inner{padding:14px 14px 20px;display:flex;flex-direction:column;gap:12px}
+.fl{display:flex;flex-direction:column;gap:5px}
+.fl-label{font-size:.68rem;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.06em}
+.fi{padding:7px 10px;border:1.5px solid var(--b);border-radius:8px;font-size:.8rem;outline:none;background:var(--c);width:100%;transition:border .15s,background .15s}
+.fi:focus{border-color:var(--a);background:#fff}
+.star-row{display:flex;gap:3px;flex-wrap:wrap}
+.sc{display:none}.sc+label{padding:4px 8px;border-radius:16px;border:1.5px solid var(--b);font-size:.75rem;font-weight:700;cursor:pointer;user-select:none;transition:all .15s;color:#F59E0B}
+.sc:checked+label{background:#F59E0B;color:#fff;border-color:#F59E0B}
+.div{height:1px;background:var(--b)}
+.btn-reset{width:100%;padding:7px;background:var(--c);border:1.5px solid var(--b);border-radius:8px;font-size:.78rem;font-weight:600;color:var(--sub);cursor:pointer}
+.btn-reset:hover{border-color:var(--a);color:var(--a)}
+
+/* ── MAIN ── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+
+/* ── TOOLBAR ── */
+.tbar{padding:6px 14px;background:var(--s);border-bottom:1px solid var(--b);display:flex;flex-wrap:wrap;align-items:center;gap:6px;flex-shrink:0}
+.type-tabs{display:flex;gap:0;background:var(--s);border-bottom:1px solid var(--b);flex-shrink:0;overflow-x:auto;padding:0 10px}
+.type-tab{background:none;border:none;border-bottom:2px solid transparent;padding:7px 14px;font-size:.78rem;font-weight:500;color:var(--mu);cursor:pointer;white-space:nowrap;transition:color .15s,border-color .15s}
+.type-tab:hover{color:var(--t)}
+.type-tab.on{color:var(--a);border-bottom-color:var(--a);font-weight:600}
+.type-cnt{font-size:.68rem;font-weight:600;background:var(--as);color:var(--a);padding:1px 5px;border-radius:8px;margin-left:3px}
+.res-count{font-size:.8rem;font-weight:600;color:var(--mu);white-space:nowrap}
+.tbar-right{margin-left:auto;display:flex;align-items:center;gap:8px;flex-shrink:0}
+/* active filter chips */
+.fchips{display:flex;flex-wrap:wrap;gap:4px;flex:1;min-width:0}
+.fchip{display:inline-flex;align-items:center;gap:4px;background:var(--as);color:var(--a);border:1px solid #99F6E4;border-radius:20px;padding:2px 8px;font-size:.7rem;font-weight:600;white-space:nowrap}
+.fchip button{background:none;border:none;color:var(--a);cursor:pointer;padding:0;font-size:.75rem;line-height:1;opacity:.7}.fchip button:hover{opacity:1}
+.fi-sm{padding:5px 8px;font-size:.75rem;border:1.5px solid var(--b);border-radius:7px;background:#fff;outline:none;cursor:pointer}
+.fi-sm:focus{border-color:var(--a)}
+.view-btns{display:flex;border:1.5px solid var(--b);border-radius:8px;overflow:hidden}
+.vb{padding:4px 11px;border:none;background:transparent;font-size:.75rem;font-weight:600;color:var(--sub);cursor:pointer;transition:all .15s}
+.vb.on{background:var(--a);color:#fff}
+
+/* ── TABLE ── */
+.tbl-wrap{flex:1;overflow:auto}
+table.ft{width:100%;border-collapse:collapse;font-size:.8rem}
+table.ft th{position:sticky;top:0;background:#EDEAE3;padding:7px 10px;font-weight:700;font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:var(--sub);border-bottom:1px solid var(--b);cursor:pointer;user-select:none;white-space:nowrap;z-index:2}
+table.ft th:hover{color:var(--a)}
+table.ft th .sa{opacity:.35;margin-left:3px}
+table.ft th.sorted .sa{opacity:1;color:var(--a)}
+table.ft td{padding:8px 10px;border-bottom:1px solid #F2EFE9;vertical-align:middle}
+table.ft tr:hover td{background:rgba(15,118,110,.035)}
+table.ft tr.sel td{background:var(--as)}
+table.ft tr{cursor:pointer;transition:background .1s}
+.score-cell{display:flex;align-items:center;gap:6px}
+.score-track{flex:1;height:5px;background:#eee;border-radius:3px;min-width:50px;overflow:hidden}
+.score-fill{height:100%;border-radius:3px;transition:width .4s}
+.sv{font-weight:700;font-size:.8rem;min-width:26px}
+.stars-s{letter-spacing:.5px;font-size:.82rem;color:#F59E0B}
+.stars-s .e{color:#D1D5DB}
+.tag{display:inline-block;padding:2px 7px;border-radius:10px;font-size:.68rem;font-weight:600;white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis}
+.tc{background:var(--pub);color:var(--pu)}.ta{background:var(--ab);color:var(--am)}
+.rp{color:var(--g);font-weight:600}.rn{color:var(--r);font-weight:600}.rz{color:var(--sub)}
+.aum-v{color:var(--sub);font-size:.72rem}
+.pg{padding:9px 14px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--b);background:var(--s);flex-shrink:0}
+.pg-info{font-size:.75rem;color:var(--mu)}
+.pg-btns{display:flex;gap:3px}
+.pb{padding:4px 9px;border:1.5px solid var(--b);border-radius:6px;background:#fff;font-size:.75rem;font-weight:600;color:var(--ink);cursor:pointer;transition:all .12s}
+.pb:hover:not([disabled]){border-color:var(--a);color:var(--a)}
+.pb[disabled]{opacity:.35;cursor:default}
+.pb.on{background:var(--a);color:#fff;border-color:var(--a)}
+
+/* ── DRAWER ── */
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:200;opacity:0;pointer-events:none;transition:opacity .2s}
+.ov.open{opacity:1;pointer-events:all}
+.drw{position:fixed;right:0;top:0;bottom:0;width:600px;background:var(--s);z-index:201;transform:translateX(110%);transition:transform .26s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--sh-m)}
+.drw.open{transform:translateX(0)}
+.drh{padding:16px 20px 12px;border-bottom:1px solid var(--b);flex-shrink:0;position:relative}
+.drh-top{display:flex;align-items:flex-start;gap:10px;margin-bottom:6px}
+.drh-title{font-family:var(--fd);font-size:1.05rem;font-weight:600;line-height:1.35;flex:1;padding-right:28px}
+.drh-sub{font-size:.75rem;color:var(--mu);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.drh-close{position:absolute;top:14px;right:14px;width:28px;height:28px;border:none;background:var(--c);border-radius:50%;font-size:1rem;color:var(--sub);cursor:pointer;display:flex;align-items:center;justify-content:center}
+.drh-close:hover{background:var(--b);color:var(--ink)}
+.ms-link{font-size:.7rem;color:var(--a);text-decoration:none;font-weight:600;padding:2px 7px;border:1px solid var(--as);border-radius:10px;background:var(--as)}
+.ms-link:hover{background:var(--a);color:#fff}
+
+/* ── DRAWER TABS ── */
+.tab-bar{display:flex;border-bottom:2px solid var(--b);background:var(--s);flex-shrink:0;overflow-x:auto;padding:0 16px}
+.tab-bar::-webkit-scrollbar{height:0}
+.tab{padding:9px 14px;border:none;background:transparent;font-size:.78rem;font-weight:600;color:var(--sub);cursor:pointer;border-bottom:2.5px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:all .15s}
+.tab:hover{color:var(--ink)}
+.tab.on{color:var(--a);border-bottom-color:var(--a)}
+.tab-badge{background:var(--as);color:var(--a);font-size:.64rem;padding:1px 5px;border-radius:8px;margin-left:4px;font-weight:700}
+
+/* ── DRAWER BODY ── */
+.drb{flex:1;overflow-y:auto;padding:16px 20px}
+.m-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+.mc{background:var(--c);border-radius:10px;padding:10px 12px}
+.mc .lbl{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--sub);margin-bottom:3px}
+.mc .val{font-size:1rem;font-weight:700}
+.val.pos{color:var(--g)}.val.neg{color:var(--r)}.val.muted{color:var(--mu)}
+.sec-hdr{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--sub);margin:16px 0 8px;padding-bottom:5px;border-bottom:1.5px solid var(--b);display:flex;align-items:center;justify-content:space-between}
+.sec-hdr span{font-size:.68rem;color:var(--mu);font-weight:500;text-transform:none;letter-spacing:0}
+
+/* ── HOLDINGS TABLE ── */
+.ht-wrap{overflow-x:auto;overflow-y:visible}
+.ht-wrap::-webkit-scrollbar{height:8px}
+.ht-wrap::-webkit-scrollbar-track{background:#F2EFE9;border-radius:4px}
+.ht-wrap::-webkit-scrollbar-thumb{background:#C7C0B6;border-radius:4px}
+.ht-wrap::-webkit-scrollbar-thumb:hover{background:#A89E94}
+.ht{width:100%;border-collapse:collapse;font-size:.77rem;min-width:600px}
+.ht th{position:sticky;top:0;background:#EDEAE3;text-align:left;padding:5px 8px;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--sub);border-bottom:1px solid var(--b);white-space:nowrap;z-index:1}
+.ht th:hover{color:var(--a)}
+.ht td{padding:6px 8px;border-bottom:1px solid #F5F3EF;vertical-align:middle}
+.ht tr:hover td{background:rgba(15,118,110,.03)}
+.ht tr:last-child td{border-bottom:none}
+.rank-dot{width:20px;height:20px;border-radius:50%;background:var(--as);color:var(--a);font-size:.62rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.wt-bar{display:flex;align-items:center;gap:5px}
+.wt-bg{flex:1;height:4px;background:#eee;border-radius:2px;min-width:50px}
+.wt-fill{height:100%;background:var(--a);border-radius:2px;transition:width .3s}
+.wt-pct{font-size:.7rem;font-weight:600;color:var(--mu);min-width:34px;text-align:right}
+.moat{font-size:.65rem;padding:1px 5px;border-radius:6px;font-weight:600}
+.moat.wide{background:#DCFCE7;color:#15803D}
+.moat.narrow{background:#FEF3C7;color:#92400E}
+.moat.none{background:#F1F5F9;color:#64748B}
+.esg{font-size:.68rem;font-weight:600}
+.esg.low{color:var(--g)}.esg.med{color:var(--am)}.esg.high{color:var(--r)}
+.trend-bars{display:flex;align-items:flex-end;gap:1px;height:16px}
+.trend-bar{width:4px;border-radius:1px;background:var(--as)}
+.sector-tag{font-size:.65rem;padding:1px 6px;border-radius:6px;background:#F0F9FF;color:#0369A1;font-weight:600}
+
+/* ── CHARTS ── */
+.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.chart-card{background:var(--c);border-radius:var(--rad);padding:12px}
+.chart-card h4{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--sub);margin-bottom:10px}
+.chart-wrap{position:relative;height:160px}
+.bar-list{display:flex;flex-direction:column;gap:6px}
+.bar-item{display:flex;align-items:center;gap:8px;font-size:.72rem}
+.bar-name{min-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.bar-track{flex:1;height:7px;background:#e8e8e8;border-radius:4px;overflow:hidden}
+.bar-fill{height:100%;border-radius:4px}
+.bar-val{min-width:36px;text-align:right;font-weight:700;font-size:.7rem;color:var(--mu)}
+
+/* ── STYLE BOX ── */
+.style-box{display:grid;grid-template-columns:repeat(3,32px);gap:2px}
+.sb-cell{height:32px;border-radius:4px;background:#F1F5F9;display:flex;align-items:center;justify-content:center;font-size:.6rem;color:#94A3B8;font-weight:600}
+.sb-cell.on{background:var(--a);color:#fff}
+.style-labels{display:flex;flex-direction:column;gap:2px;font-size:.62rem;color:var(--sub);margin-left:4px}
+
+/* ── INFO LIST ── */
+.info-list{display:flex;flex-direction:column}
+.il-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #F5F3EF;font-size:.78rem}
+.il-row:last-child{border-bottom:none}
+.il-k{color:var(--mu);font-weight:500}.il-v{font-weight:600}
+
+/* ── EMPTY / LOAD ── */
+.empty{text-align:center;padding:30px 16px;color:var(--sub)}
+.empty .emo{font-size:2rem;margin-bottom:8px;opacity:.5}
+.loader{display:flex;align-items:center;justify-content:center;padding:40px;gap:10px;color:var(--mu);font-size:.82rem}
+.spinner{width:18px;height:18px;border:2px solid var(--b);border-top-color:var(--a);border-radius:50%;animation:spin .65s linear infinite}
+
+/* ── ANALYSIS VIEW ── */
+.an-wrap{flex:1;overflow-y:auto;padding:16px 20px}
+.an-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.an-card{background:var(--s);border:1px solid var(--b);border-radius:var(--rad-l);padding:14px}
+.an-card h3{font-family:var(--fd);font-size:.95rem;font-weight:600;margin-bottom:12px}
+
+/* ── ANALYTICS VIEW ── */
+.anl-wrap{flex:1;overflow-y:auto;padding:16px 20px}
+.anl-stat-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.anl-stat{background:var(--s);border:1px solid var(--b);border-radius:10px;padding:10px 16px;flex:1;min-width:120px}
+.anl-stat .lbl{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--sub);margin-bottom:3px}
+.anl-stat .val{font-size:1.2rem;font-weight:700}
+.anl-tabs{display:flex;border-bottom:2px solid var(--b);margin-bottom:14px}
+.anl-tab{padding:8px 16px;border:none;background:transparent;font-size:.8rem;font-weight:600;color:var(--sub);cursor:pointer;border-bottom:2.5px solid transparent;margin-bottom:-2px}
+.anl-tab.on{color:var(--a);border-bottom-color:var(--a)}
+.anl-tbl-wrap{overflow-x:auto;overflow-y:visible}
+.anl-tbl-wrap::-webkit-scrollbar{height:8px}
+.anl-tbl-wrap::-webkit-scrollbar-track{background:#F2EFE9;border-radius:4px}
+.anl-tbl-wrap::-webkit-scrollbar-thumb{background:#C7C0B6;border-radius:4px}
+.anl-tbl-wrap::-webkit-scrollbar-thumb:hover{background:#A89E94}
+.anl-tbl{width:100%;border-collapse:collapse;font-size:.77rem;min-width:700px}
+.anl-tbl th{position:sticky;top:0;background:#EDEAE3;text-align:left;padding:6px 10px;font-size:.67rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--sub);border-bottom:1px solid var(--b);white-space:nowrap;z-index:2;cursor:pointer;user-select:none}
+.anl-tbl th:hover{color:var(--a)}
+.anl-tbl td{padding:6px 10px;border-bottom:1px solid #F2EFE9;vertical-align:middle}
+.anl-tbl tr:hover td{background:rgba(15,118,110,.035)}
+.fund-dots{display:flex;flex-wrap:wrap;gap:2px;max-width:200px}
+.fund-dot{width:6px;height:6px;border-radius:50%;background:var(--a);opacity:.6;cursor:default}
+.fund-dot:hover{opacity:1}
+.anl-search{padding:6px 10px;border:1.5px solid var(--b);border-radius:8px;font-size:.8rem;outline:none;background:#fff;width:260px}
+.anl-search:focus{border-color:var(--a)}
+.anl-badge{display:inline-block;background:var(--as);color:var(--a);font-size:.65rem;font-weight:700;padding:1px 6px;border-radius:8px;white-space:nowrap}
+.no-data-msg{text-align:center;padding:40px;color:var(--sub)}
+.no-data-msg .emo{font-size:2.5rem;margin-bottom:10px;opacity:.4}
+
+/* ── GLOBAL FETCH PROGRESS BAR ── */
+.gfp{position:fixed;top:0;left:0;right:0;height:3px;z-index:999;background:transparent;pointer-events:none}
+.gfp-bar{height:100%;background:linear-gradient(90deg,var(--a),#34D399);border-radius:0 2px 2px 0;transition:width .6s ease}
+.gfp-pill{position:fixed;top:8px;right:80px;background:var(--a);color:#fff;font-size:.68rem;font-weight:700;padding:3px 10px;border-radius:20px;z-index:999;display:none;gap:5px;align-items:center;box-shadow:0 2px 8px rgba(15,118,110,.35)}
+.gfp-pill .spinner{width:10px;height:10px;border-width:1.5px}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(10px);background:#1C1917;color:#fff;padding:9px 18px;border-radius:20px;font-size:.8rem;font-weight:500;z-index:999;opacity:0;transition:all .22s;pointer-events:none;max-width:90vw;text-align:center}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── COMPARE BANNER ── */
+.cmp-bar{position:fixed;bottom:0;left:0;right:0;background:#1C1917;color:#fff;padding:10px 20px;display:flex;align-items:center;gap:12px;z-index:150;transform:translateY(100%);transition:transform .22s}
+.cmp-bar.on{transform:translateY(0)}
+.cmp-chips{display:flex;gap:6px;flex:1;overflow-x:auto}
+.cmp-chip{background:#333;border-radius:16px;padding:4px 10px;font-size:.72rem;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.cmp-chip button{background:none;border:none;color:#999;cursor:pointer;font-size:.75rem;padding:0 2px}
+.cmp-chip button:hover{color:#fff}
+
+@media(max-width:960px){.drw{width:100%}.m-grid{grid-template-columns:repeat(2,1fr)}.chart-row{grid-template-columns:1fr}}
+@media(max-width:700px){.sidebar{display:none}.an-grid{grid-template-columns:1fr}}
+
+/* ── ENTITY DETAIL MODAL ── */
+.edm-ov{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;opacity:0;pointer-events:none;transition:opacity .2s}
+.edm-ov.open{opacity:1;pointer-events:all}
+.edm{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%) scale(.97);width:min(900px,96vw);max-height:88vh;background:var(--s);border-radius:var(--rad-l);box-shadow:0 20px 60px rgba(0,0,0,.25);z-index:301;display:flex;flex-direction:column;opacity:0;pointer-events:none;transition:all .22s cubic-bezier(.4,0,.2,1)}
+.edm.open{opacity:1;pointer-events:all;transform:translate(-50%,-50%) scale(1)}
+.edm-hdr{padding:18px 20px 14px;border-bottom:1px solid var(--b);flex-shrink:0;display:flex;align-items:flex-start;gap:12px}
+.edm-hdr-info{flex:1}
+.edm-hdr-info h2{font-family:var(--fd);font-size:1.1rem;font-weight:600;margin-bottom:4px}
+.edm-hdr-info .meta{font-size:.75rem;color:var(--mu);display:flex;flex-wrap:wrap;gap:8px}
+.edm-close{width:30px;height:30px;border:none;background:var(--c);border-radius:50%;font-size:1rem;color:var(--sub);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.edm-close:hover{background:var(--b);color:var(--ink)}
+.edm-body{flex:1;overflow-y:auto;padding:16px 20px}
+.edm-body::-webkit-scrollbar{width:5px}
+.edm-body::-webkit-scrollbar-thumb{background:#C7C0B6;border-radius:3px}
+.edm-tbl-wrap{overflow-x:auto}
+.edm-tbl-wrap::-webkit-scrollbar{height:8px}
+.edm-tbl-wrap::-webkit-scrollbar-track{background:#F2EFE9;border-radius:4px}
+.edm-tbl-wrap::-webkit-scrollbar-thumb{background:#C7C0B6;border-radius:4px}
+.edm-tbl-wrap::-webkit-scrollbar-thumb:hover{background:#A89E94}
+.edm-tbl{width:100%;border-collapse:collapse;font-size:.77rem}
+.edm-tbl th{position:sticky;top:0;background:#EDEAE3;text-align:left;padding:6px 10px;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--sub);border-bottom:1px solid var(--b);white-space:nowrap;z-index:1;cursor:pointer;user-select:none}
+.edm-tbl th:hover{color:var(--a)}
+.edm-tbl td{padding:7px 10px;border-bottom:1px solid #F2EFE9;vertical-align:middle}
+.edm-tbl tr:hover td{background:rgba(15,118,110,.03)}
+.edm-tbl tr:last-child td{border-bottom:none}
+.edm-stars{color:#F59E0B;font-size:.82rem;letter-spacing:.5px}
+.since-badge{display:inline-block;font-size:.68rem;font-weight:700;padding:2px 7px;border-radius:10px}
+.since-badge.long{background:#DCFCE7;color:#15803D}
+.since-badge.med{background:#FEF3C7;color:#92400E}
+.since-badge.new{background:#F0F9FF;color:#0369A1}
+.anl-tbl tr.clickable-row{cursor:pointer}
+.anl-tbl tr.clickable-row:hover td{background:rgba(15,118,110,.06) !important}
+
+/* ── FUND FINDER ── */
+.finder-panel{background:var(--s);border:1px solid var(--b);border-radius:var(--rad-l);padding:18px;margin-bottom:16px}
+.finder-panel h3{font-family:var(--fd);font-size:.95rem;font-weight:600;margin-bottom:14px;color:var(--ink)}
+.finder-row{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:14px}
+.finder-input-wrap{flex:1;min-width:220px;position:relative}
+.finder-input-wrap .fl-label{margin-bottom:5px}
+.finder-dd{position:absolute;z-index:50;top:100%;left:0;right:0;background:var(--s);border:1.5px solid var(--a);border-top:none;border-radius:0 0 8px 8px;max-height:220px;overflow-y:auto;box-shadow:var(--sh-m);display:none}
+.finder-dd-item{padding:8px 12px;cursor:pointer;font-size:.8rem;display:flex;justify-content:space-between;align-items:center;gap:8px;border-bottom:1px solid var(--b)}
+.finder-dd-item:last-child{border-bottom:none}
+.finder-dd-item:hover{background:var(--as)}
+.finder-dd-item.disabled{opacity:.4;pointer-events:none}
+.finder-chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px;min-height:30px;align-items:center}
+.finder-stat-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.finder-stat{background:var(--c);border:1px solid var(--b);border-radius:10px;padding:10px 14px;flex:1;min-width:110px}
+.finder-stat .lbl{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--sub);margin-bottom:3px}
+.finder-stat .val{font-size:1.2rem;font-weight:700}
+.cv-track{flex:1;height:5px;background:#eee;border-radius:3px;min-width:50px;overflow:hidden}
+.cv-fill{height:100%;border-radius:3px;transition:width .4s}
+.held-chips{display:flex;flex-wrap:wrap;gap:3px}
+.held-chip{display:inline-block;padding:1px 6px;background:var(--as);color:var(--a);border-radius:8px;font-size:.64rem;font-weight:600;white-space:nowrap;cursor:default}
+.held-chip.bond{background:var(--blb);color:var(--bl)}
+
+/* ── SETUP MODAL ── */
+.setup-section{margin-bottom:20px}
+.setup-section h4{font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--sub);margin-bottom:10px;padding-bottom:6px;border-bottom:1.5px solid var(--b)}
+.setup-row{display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;margin-bottom:8px}
+.setup-row .fi{flex:1;min-width:0}
+.setup-status{display:inline-flex;align-items:center;gap:5px;font-size:.75rem;font-weight:600;padding:3px 10px;border-radius:12px;margin-left:6px}
+.setup-status.ok{background:var(--gb);color:var(--g)}
+.setup-status.warn{background:var(--ab);color:var(--am)}
+.setup-status.err{background:var(--rb);color:var(--r)}
+.setup-textarea{width:100%;min-height:80px;padding:8px 10px;border:1.5px solid var(--b);border-radius:8px;font-size:.73rem;font-family:monospace;outline:none;resize:vertical;background:var(--c)}
+.setup-textarea:focus{border-color:var(--a);background:#fff}
+</style>
+</head>
+<body>
+
+<!-- GLOBAL FETCH PROGRESS -->
+<div class="gfp" id="gfp"><div class="gfp-bar" id="gfpBar" style="width:0%"></div></div>
+<div class="gfp-pill" id="gfpPill"><div class="spinner"></div><span id="gfpTxt"></span></div>
+
+<!-- HEADER -->
+<header class="hdr">
+  <div class="hdr-brand">
+    <h1>MF Analyzer</h1>
+    <span>India · Morningstar Data</span>
+  </div>
+  <div class="hdr-right">
+    <span class="pill" id="totalPill">— funds</span>
+    <button class="btn btn-sec" onclick="toggleView('analytics')" id="btnAnalytics">🔬 Analytics</button>
+    <button class="btn btn-sec" onclick="toggleView('analysis')" id="btnAnalysis">📊 Analysis</button>
+    <button class="btn btn-pri" id="btnRefresh" onclick="refreshData()">↻ Refresh</button>
+    <button class="btn btn-sec" onclick="openSetup()" title="Setup: proxy, SAL headers, import/export" style="padding:6px 10px">⚙</button>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- SIDEBAR: Fund Filters (visible on table view) -->
+  <aside class="sidebar" id="sbFunds">
+    <div class="sb-inner">
+      <div class="fl">
+        <div class="fl-label">Search</div>
+        <input type="search" id="fQ" class="fi" placeholder="Name, AMC…" oninput="debounceFlt()">
+      </div>
+      <div class="div"></div>
+      <div class="fl">
+        <div class="fl-label">Category</div>
+        <select id="fCat" class="fi" onchange="applyFlt()"><option value="">All categories</option></select>
+      </div>
+      <div class="fl">
+        <div class="fl-label">AMC</div>
+        <select id="fAMC" class="fi" onchange="applyFlt()"><option value="">All AMCs</option></select>
+      </div>
+      <div class="div"></div>
+      <div class="fl">
+        <div class="fl-label">Star Rating</div>
+        <div class="star-row">
+          <input type="checkbox" class="sc" id="s5" value="5" onchange="applyFlt()"><label for="s5">★★★★★</label>
+          <input type="checkbox" class="sc" id="s4" value="4" onchange="applyFlt()"><label for="s4">★★★★</label>
+          <input type="checkbox" class="sc" id="s3" value="3" onchange="applyFlt()"><label for="s3">★★★</label>
+          <input type="checkbox" class="sc" id="s2" value="2" onchange="applyFlt()"><label for="s2">★★</label>
+          <input type="checkbox" class="sc" id="s1" value="1" onchange="applyFlt()"><label for="s1">★</label>
+        </div>
+      </div>
+      <div class="div"></div>
+      <div class="fl"><div class="fl-label">Min 1Y Return (%)</div>
+        <input type="number" id="fR1" class="fi" placeholder="e.g. 10" step="1" oninput="debounceFlt()">
+      </div>
+      <div class="fl"><div class="fl-label">Min 3Y Return (%)</div>
+        <input type="number" id="fR3" class="fi" placeholder="e.g. 15" step="1" oninput="debounceFlt()">
+      </div>
+      <div class="fl"><div class="fl-label">Min 5Y Return (%)</div>
+        <input type="number" id="fR5" class="fi" placeholder="e.g. 12" step="1" oninput="debounceFlt()">
+      </div>
+      <div class="div"></div>
+      <div class="fl"><div class="fl-label">Max Expense Ratio (%)</div>
+        <input type="number" id="fExp" class="fi" placeholder="e.g. 1.0" step="0.1" min="0" max="3" oninput="debounceFlt()">
+      </div>
+      <div class="fl"><div class="fl-label">Min AUM (₹ Cr)</div>
+        <input type="number" id="fAUM" class="fi" placeholder="e.g. 500" step="100" oninput="debounceFlt()">
+      </div>
+      <div class="div"></div>
+      <button class="btn-reset" onclick="resetFlt()">↺ Reset filters</button>
+    </div>
+  </aside>
+
+  <!-- SIDEBAR: Analytics Filters (visible on analytics view) -->
+  <aside class="sidebar" id="sbAnalytics" style="display:none">
+    <div class="sb-inner" id="sbAnlInner">
+      <!-- rendered by _renderAnlSidebar() -->
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- TABLE VIEW -->
+    <div id="vTable" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
+      <!-- Fund type tabs -->
+      <div class="type-tabs" id="typeTabs">
+        <button class="type-tab on" data-type="" onclick="_setTypeTab(this,'')">All <span class="type-cnt" id="tcAll">—</span></button>
+        <button class="type-tab" data-type="equity" onclick="_setTypeTab(this,'equity')">Equity <span class="type-cnt" id="tcEquity">—</span></button>
+        <button class="type-tab" data-type="index" onclick="_setTypeTab(this,'index')">Index <span class="type-cnt" id="tcIndex">—</span></button>
+        <button class="type-tab" data-type="hybrid" onclick="_setTypeTab(this,'hybrid')">Hybrid <span class="type-cnt" id="tcHybrid">—</span></button>
+        <button class="type-tab" data-type="debt" onclick="_setTypeTab(this,'debt')">Debt <span class="type-cnt" id="tcDebt">—</span></button>
+        <button class="type-tab" data-type="liquid" onclick="_setTypeTab(this,'liquid')">Liquid <span class="type-cnt" id="tcLiquid">—</span></button>
+        <button class="type-tab" data-type="global" onclick="_setTypeTab(this,'global')">Global <span class="type-cnt" id="tcGlobal">—</span></button>
+      </div>
+      <div class="tbar">
+        <span class="res-count" id="resCount">Loading…</span>
+        <div class="fchips" id="fchips"></div>
+        <div class="tbar-right">
+          <select id="sortBy" class="fi-sm" onchange="applyFlt()">
+            <option value="score">Composite Score</option>
+            <option value="ret3y">3Y Return</option>
+            <option value="ret1y">1Y Return</option>
+            <option value="ret5y">5Y Return</option>
+            <option value="stars">Stars</option>
+            <option value="expense">Expense Ratio</option>
+            <option value="aum">AUM</option>
+            <option value="sharpe">Sharpe Ratio</option>
+            <option value="name">Name</option>
+          </select>
+          <select id="sortDir" class="fi-sm" onchange="applyFlt()">
+            <option value="desc">↓ High first</option>
+            <option value="asc">↑ Low first</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="tbl-wrap">
+        <table class="ft" id="ft">
+          <thead><tr>
+            <th onclick="sortC('score')" id="th-score">Score<span class="sa">↕</span></th>
+            <th onclick="sortC('stars')" id="th-stars">Rating<span class="sa">↕</span></th>
+            <th>Fund Name</th>
+            <th>Category</th>
+            <th onclick="sortC('ret1y')" id="th-ret1y">1Y<span class="sa">↕</span></th>
+            <th onclick="sortC('ret3y')" id="th-ret3y">3Y<span class="sa">↕</span></th>
+            <th onclick="sortC('ret5y')" id="th-ret5y">5Y<span class="sa">↕</span></th>
+            <th onclick="sortC('expense')" id="th-expense">Exp%<span class="sa">↕</span></th>
+            <th onclick="sortC('aum')" id="th-aum">AUM ₹Cr<span class="sa">↕</span></th>
+            <th onclick="sortC('sharpe')" id="th-sharpe">Sharpe<span class="sa">↕</span></th>
+          </tr></thead>
+          <tbody id="tbody"><tr><td colspan="10"><div class="loader"><div class="spinner"></div>Loading funds…</div></td></tr></tbody>
+        </table>
+      </div>
+      <div class="pg">
+        <span class="pg-info" id="pgInfo">—</span>
+        <div class="pg-btns" id="pgBtns"></div>
+      </div>
+    </div>
+
+    <!-- ANALYTICS VIEW -->
+    <div id="vAnalytics" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+      <div class="tbar">
+        <button class="btn btn-sec" onclick="toggleView('table')">← Back to Funds</button>
+        <span style="font-size:.85rem;font-weight:600;margin-left:8px;color:var(--mu)">Holdings Analytics</span>
+        <span id="anlFundsBadge" style="margin-left:8px"></span>
+        <div class="tbar-right">
+          <!-- running state -->
+          <div id="anlBulkProgress" style="display:none;align-items:center;gap:8px;font-size:.75rem;color:var(--mu)">
+            <div class="spinner"></div>
+            <span id="anlProgressTxt">Fetching…</span>
+            <div style="width:120px;height:6px;background:#eee;border-radius:3px;overflow:hidden">
+              <div id="anlProgressBar" style="height:100%;background:var(--a);border-radius:3px;width:0%;transition:width .4s"></div>
+            </div>
+            <button class="btn btn-sec" style="padding:3px 9px;font-size:.72rem" onclick="bulkStop()">Stop</button>
+          </div>
+          <!-- stopped state -->
+          <div id="anlBulkStopped" style="display:none;align-items:center;gap:6px;font-size:.75rem;color:var(--mu)">
+            <span id="anlStoppedTxt" style="margin-right:2px"></span>
+            <button class="btn btn-pri" style="padding:3px 10px;font-size:.72rem" onclick="bulkResume()">▶ Resume</button>
+            <button class="btn btn-sec" style="padding:3px 10px;font-size:.72rem" onclick="bulkRestart()">↺ Restart</button>
+          </div>
+          <button class="btn btn-pri" id="anlFetchAllBtn" onclick="bulkFetch()" style="white-space:nowrap">⬇ Fetch All 13K Funds</button>
+        </div>
+      </div>
+      <div class="anl-wrap" id="anlContent">
+        <div class="loader"><div class="spinner"></div> Loading analytics…</div>
+      </div>
+    </div>
+
+    <!-- ANALYSIS VIEW -->
+    <div id="vAnalysis" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+      <div class="tbar">
+        <button class="btn btn-sec" onclick="toggleView('table')">← Back to Funds</button>
+        <span style="font-size:.85rem;font-weight:600;margin-left:8px;color:var(--mu)">Portfolio Analysis</span>
+      </div>
+      <div class="an-wrap" id="anContent"><div class="loader"><div class="spinner"></div> Generating…</div></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- DRAWER OVERLAY -->
+<div class="ov" id="ov" onclick="closeDrawer()"></div>
+
+<!-- HOLDINGS DRAWER -->
+<div class="drw" id="drw">
+  <div class="drh">
+    <div class="drh-top">
+      <div class="drh-title" id="drwTitle">Fund Details</div>
+    </div>
+    <div class="drh-sub" id="drwSub"></div>
+    <button class="drh-close" onclick="closeDrawer()">✕</button>
+  </div>
+
+  <!-- TABS -->
+  <div class="tab-bar" id="tabBar">
+    <button class="tab on" data-tab="overview"    onclick="switchTab('overview')">Overview</button>
+    <button class="tab" data-tab="equity"         onclick="switchTab('equity')">Equity <span class="tab-badge" id="tbEq">—</span></button>
+    <button class="tab" data-tab="bonds"          onclick="switchTab('bonds')">Bonds <span class="tab-badge" id="tbBd">—</span></button>
+    <button class="tab" data-tab="others"         onclick="switchTab('others')">Others <span class="tab-badge" id="tbOt">—</span></button>
+    <button class="tab" data-tab="allocation"     onclick="switchTab('allocation')">Allocation</button>
+    <button class="tab" data-tab="sectors"        onclick="switchTab('sectors')">Sectors</button>
+    <button class="tab" data-tab="performance"    onclick="switchTab('performance')">Performance</button>
+  </div>
+
+  <div class="drb" id="drwBody">
+    <div class="loader"><div class="spinner"></div>Loading…</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- SETUP MODAL -->
+<div class="edm-ov" id="setupOv" style="z-index:400" onclick="closeSetup()"></div>
+<div class="edm" id="setupModal" style="z-index:401;width:min(680px,96vw);max-height:92vh">
+  <div class="edm-hdr">
+    <div class="edm-hdr-info">
+      <h2>Setup &amp; Configuration</h2>
+      <div class="meta" id="setupMetaLine"></div>
+    </div>
+    <button class="edm-close" onclick="closeSetup()">✕</button>
+  </div>
+  <div class="edm-body" style="padding:20px" id="setupBody">
+    <!-- filled by renderSetup() -->
+  </div>
+</div>
+
+<!-- ENTITY DETAIL MODAL -->
+<div class="edm-ov" id="edmOv" onclick="closeEntityDetail()"></div>
+<div class="edm" id="edm">
+  <div class="edm-hdr">
+    <div class="edm-hdr-info">
+      <h2 id="edmTitle">—</h2>
+      <div class="meta" id="edmMeta"></div>
+    </div>
+    <button class="edm-close" onclick="closeEntityDetail()">✕</button>
+  </div>
+  <div class="edm-body" id="edmBody">
+    <div class="loader"><div class="spinner"></div> Loading…</div>
+  </div>
+</div>
+
+<script>
+// ── State ──
+const API = '';
+let S = {page:1,ps:50,sort:'score',dir:'desc',q:'',cat:'',amc:'',stars:[],r1:'',r3:'',r5:'',exp:'',aum:'',fundType:''};
+
+// ── SW message helper ──
+function _swMsg(type, payload) {
+  if (navigator.serviceWorker?.controller)
+    navigator.serviceWorker.controller.postMessage({ type, payload });
+}
+
+// ── Fund type tab counts ──
+async function loadTypeCounts() {
+  const d = await api('/api/fund-type-counts');
+  if(!d) return;
+  const map = {all:'tcAll',equity:'tcEquity',index:'tcIndex',hybrid:'tcHybrid',debt:'tcDebt',liquid:'tcLiquid',global:'tcGlobal'};
+  for(const [k,id] of Object.entries(map)) {
+    const el = document.getElementById(id);
+    if(el) el.textContent = (d[k]||0).toLocaleString();
+  }
+}
+
+function _setTypeTab(btn, type) {
+  document.querySelectorAll('.type-tab').forEach(t => t.classList.remove('on'));
+  btn.classList.add('on');
+  S.fundType = type;
+  S.cat = '';                             // reset category when switching type
+  document.getElementById('fCat').value = '';
+  _updateCatDropdown(type);
+  S.page = 1;
+  loadFunds();
+}
+
+function _updateCatDropdown(type) {
+  // Category keywords per type — mirrors server FUND_TYPE_KEYWORDS
+  const kwMap = {
+    equity:['large-cap','mid-cap','small-cap','large & mid','multi-cap','flexi cap','focused fund','contra','value','dividend yield','elss','equity savings','sector -','equity -','equity long-short','equity ex-top'],
+    index:['index funds'],
+    hybrid:['aggressive allocation','balanced allocation','conservative allocation','dynamic asset allocation','multi asset allocation','hybrid long-short','arbitrage','fund of funds','children','retirement'],
+    debt:['corporate bond','banking & psu','credit risk','dynamic bond','government bond','10 yr government','short duration','medium duration','medium to long duration','long duration','ultra short duration','low duration','floating rate','fixed maturity','other bond'],
+    liquid:['liquid','money market','overnight'],
+    global:['global -','alternative other'],
+  };
+  const sel = document.getElementById('fCat');
+  const kws = kwMap[type] || [];
+  // Re-populate from _allCats (stored at load time)
+  sel.innerHTML = '<option value="">All categories</option>';
+  const visible = type ? (_allCats||[]).filter(c => kws.some(kw => c.toLowerCase().includes(kw))) : (_allCats||[]);
+  visible.forEach(c => sel.insertAdjacentHTML('beforeend', `<option value="${xe(c)}">${xe(c)}</option>`));
+}
+let _dbt = null, _curFund = null, _holdData = null, _activeTab = 'overview';
+let _charts = {};
+
+// ── Init ──
+let _allCats = [];
+
+async function init() {
+  // Load proxy URL into fetcher on startup
+  const cfg = await api('/api/config/proxy').catch(() => null);
+  if (cfg?.proxy) MFfetcher.setProxy(cfg.proxy);
+
+  const fundCount = await MFidb.getFundCount();
+  if (!fundCount) {
+    // First run: show setup immediately
+    openSetup(true);
+  }
+
+  await loadMeta();
+  await applyFlt();
+  loadTypeCounts();
+  checkBulkStatus();
+  const hash = window.location.hash.replace('#','');
+  if(hash === 'analytics' || hash === 'analysis') toggleView(hash);
+}
+
+// ── Setup modal ───────────────────────────────────────────────────────────────
+
+function openSetup(firstRun = false) {
+  document.getElementById('setupOv').classList.add('open');
+  document.getElementById('setupModal').classList.add('open');
+  renderSetup(firstRun);
+}
+
+function closeSetup() {
+  document.getElementById('setupOv').classList.remove('open');
+  document.getElementById('setupModal').classList.remove('open');
+}
+
+async function renderSetup(firstRun = false) {
+  const body = document.getElementById('setupBody');
+  body.innerHTML = '<div class="loader"><div class="spinner"></div> Loading…</div>';
+
+  const [cfg, fundCount, holdingCount] = await Promise.all([
+    api('/api/config/proxy').catch(() => ({})),
+    MFidb.getFundCount(),
+    MFidb.getHoldingCount(),
+  ]);
+  const proxy = cfg?.proxy || '';
+
+  const metaEl = document.getElementById('setupMetaLine');
+  if (metaEl) metaEl.innerHTML = `<span>${fundCount.toLocaleString()} funds · ${holdingCount.toLocaleString()} holdings cached</span>`;
+
+  body.innerHTML = `
+    ${firstRun ? `<div style="background:var(--as);border:1px solid #99F6E4;border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:.82rem;color:var(--a);font-weight:600">
+      👋 Welcome! Follow these steps to get started.
+    </div>` : ''}
+
+    <!-- Step 1: Proxy -->
+    <div class="setup-section">
+      <h4>Step 1 — Cloudflare Worker Proxy URL</h4>
+      <p style="font-size:.77rem;color:var(--mu);margin-bottom:10px">
+        Deploy <code style="background:var(--c);padding:1px 5px;border-radius:4px">proxy.js</code> as a Cloudflare Worker
+        and paste the URL here. This proxies Morningstar API calls to bypass CORS.
+      </p>
+      <div class="setup-row">
+        <input type="url" id="setupProxy" class="fi" placeholder="https://mf-proxy.YOUR.workers.dev" value="${xe(proxy)}">
+        <button class="btn btn-pri" onclick="_setupSaveProxy()">Save</button>
+      </div>
+      <div id="setupProxyStatus"></div>
+    </div>
+
+    <!-- Step 2: Refresh fund list -->
+    <div class="setup-section">
+      <h4>Step 2 — Load Fund List</h4>
+      <p style="font-size:.77rem;color:var(--mu);margin-bottom:10px">
+        Download the list of ~13,000 Indian mutual funds from Morningstar.
+        ${fundCount ? `<span style="color:var(--g);font-weight:600">✓ ${fundCount.toLocaleString()} funds already loaded.</span>` : '<span style="color:var(--am);font-weight:600">No funds loaded yet.</span>'}
+      </p>
+      <button class="btn btn-pri" onclick="closeSetup();refreshData()">↻ Refresh Fund List</button>
+    </div>
+
+    <!-- Step 3: SAL headers (optional fallback) -->
+    <div class="setup-section">
+      <h4>Step 3 — SAL API Headers (if auto-auth fails)</h4>
+      <p style="font-size:.77rem;color:var(--mu);margin-bottom:10px">
+        The app tries to auto-authenticate with Morningstar. If bulk fetch fails with auth errors,
+        open DevTools on <a href="https://www.morningstar.in" target="_blank" style="color:var(--a)">morningstar.in</a>,
+        copy a request's headers as JSON, and paste below.
+      </p>
+      <textarea id="setupSALHeaders" class="setup-textarea" placeholder='{"authorization":"Bearer …","x-sal-clientid":"RSIN_SAL","cookie":"…"}'></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn btn-pri" onclick="_setupSaveSALHeaders()">Save Headers</button>
+        <button class="btn btn-sec" onclick="_setupClearSALHeaders()">Clear</button>
+      </div>
+    </div>
+
+    <!-- Data management -->
+    <div class="setup-section">
+      <h4>Data Management</h4>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        <button class="btn btn-sec" onclick="_setupExport()">⬇ Export Data (JSON)</button>
+        <label class="btn btn-sec" style="cursor:pointer">
+          ⬆ Import Data (JSON)
+          <input type="file" accept=".json" style="display:none" onchange="_setupImport(event)">
+        </label>
+        <button class="btn btn-sec" style="color:var(--r);border-color:var(--r)" onclick="_setupClearHoldings()">🗑 Clear Holdings Cache</button>
+        <button class="btn btn-sec" style="color:var(--r);border-color:var(--r)" onclick="_setupClearAll()">🗑 Clear All Data</button>
+      </div>
+    </div>
+  `;
+}
+
+async function _setupSaveProxy() {
+  const url = document.getElementById('setupProxy').value.trim();
+  const st = document.getElementById('setupProxyStatus');
+  st.innerHTML = '<span class="setup-status warn">Testing…</span>';
+  try {
+    const resp = await fetch(url + '/health');
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    await api('/api/config/proxy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ proxy: url }) });
+    MFfetcher.setProxy(url);
+    st.innerHTML = '<span class="setup-status ok">✓ Proxy reachable and saved</span>';
+    toast('Proxy URL saved');
+  } catch (e) {
+    st.innerHTML = `<span class="setup-status err">✗ ${xe(e.message)}</span>`;
+    toast('Proxy test failed: ' + e.message);
+  }
+}
+
+async function _setupSaveSALHeaders() {
+  const raw = document.getElementById('setupSALHeaders').value.trim();
+  if (!raw) { toast('Paste headers JSON first'); return; }
+  let headers;
+  try { headers = JSON.parse(raw); } catch { toast('Invalid JSON — check format'); return; }
+  await api('/api/config/sal-headers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ headers }) });
+  toast('SAL headers saved');
+  document.getElementById('setupSALHeaders').value = '';
+}
+
+async function _setupClearSALHeaders() {
+  await api('/api/config/sal-headers', { method: 'DELETE' });
+  toast('SAL headers cleared');
+}
+
+async function _setupExport() {
+  toast('Exporting… this may take a moment');
+  const data = await api('/api/data/export');
+  if (!data) return;
+  const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `mf-analyzer-export-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('Export complete');
+}
+
+async function _setupImport(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  toast('Importing…');
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    const r = await api('/api/data/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+    if (r) {
+      toast(`Imported ${(r.fundsImported||0).toLocaleString()} funds + ${(r.holdingsImported||0).toLocaleString()} holdings`);
+      _swMsg('INVALIDATE_FUNDS');
+      _swMsg('INVALIDATE_ANALYTICS');
+      await loadMeta(); await applyFlt(); loadTypeCounts();
+      renderSetup();
+    }
+  } catch (e) { toast('Import failed: ' + e.message); }
+}
+
+async function _setupClearHoldings() {
+  if (!confirm('Clear all cached holdings? Fund list stays. Bulk fetch will re-download everything.')) return;
+  await api('/api/data/clear', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ what: 'holdings' }) });
+  _swMsg('INVALIDATE_ANALYTICS');
+  toast('Holdings cache cleared');
+  renderSetup();
+}
+
+async function _setupClearAll() {
+  if (!confirm('Clear ALL data (funds + holdings)? You will need to refresh fund list again.')) return;
+  await api('/api/data/clear', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ what: 'all' }) });
+  _swMsg('INVALIDATE_FUNDS');
+  _swMsg('INVALIDATE_ANALYTICS');
+  toast('All data cleared');
+  await loadMeta(); await applyFlt(); loadTypeCounts();
+  renderSetup(true);
+}
+
+async function loadMeta() {
+  const m = await api('/api/meta');
+  if (!m) return;
+  document.getElementById('totalPill').textContent = `${m.total.toLocaleString()} funds`;
+  _allCats = m.categories;
+  const cs = document.getElementById('fCat'), as = document.getElementById('fAMC');
+  m.categories.forEach(c => { const o = new Option(c,c); cs.add(o); });
+  m.amcs.forEach(a => { const o = new Option(a,a); as.add(o); });
+}
+
+// ── Filters ──
+function debounceFlt() { clearTimeout(_dbt); _dbt = setTimeout(applyFlt, 380); }
+
+function readFlt() {
+  S.q   = document.getElementById('fQ').value.trim();
+  S.cat = document.getElementById('fCat').value;
+  S.amc = document.getElementById('fAMC').value;
+  S.stars = [...document.querySelectorAll('.sc:checked')].map(x=>x.value);
+  S.r1  = document.getElementById('fR1').value;
+  S.r3  = document.getElementById('fR3').value;
+  S.r5  = document.getElementById('fR5').value;
+  S.exp = document.getElementById('fExp').value;
+  S.aum = document.getElementById('fAUM').value;
+  S.sort= document.getElementById('sortBy').value;
+  S.dir = document.getElementById('sortDir').value;
+}
+
+async function applyFlt(rp=true) {
+  readFlt(); if(rp) S.page=1;
+  await loadFunds();
+}
+
+function resetFlt() {
+  ['fQ','fR1','fR3','fR5','fExp','fAUM'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('fCat').value='';
+  document.getElementById('fAMC').value='';
+  document.querySelectorAll('.sc').forEach(c=>c.checked=false);
+  document.getElementById('sortBy').value='score';
+  document.getElementById('sortDir').value='desc';
+  S.sort='score';S.dir='desc';
+  // Reset type tab to All
+  S.fundType='';
+  document.querySelectorAll('.type-tab').forEach(t=>t.classList.remove('on'));
+  const allTab = document.querySelector('.type-tab[data-type=""]');
+  if(allTab) allTab.classList.add('on');
+  _updateCatDropdown('');
+  applyFlt();
+}
+
+function renderFilterChips() {
+  const chips = [];
+  if(S.q)   chips.push({label:`Search: "${S.q}"`,    clear:()=>{document.getElementById('fQ').value='';applyFlt();}});
+  if(S.cat) chips.push({label:`Cat: ${S.cat}`,       clear:()=>{document.getElementById('fCat').value='';applyFlt();}});
+  if(S.amc) chips.push({label:`AMC: ${S.amc}`,       clear:()=>{document.getElementById('fAMC').value='';applyFlt();}});
+  if(S.stars.length) chips.push({label:`Stars: ${S.stars.map(s=>'★'.repeat(+s)).join(' / ')}`,
+    clear:()=>{document.querySelectorAll('.sc').forEach(c=>c.checked=false);applyFlt();}});
+  if(S.r1)  chips.push({label:`1Y ≥ ${S.r1}%`,      clear:()=>{document.getElementById('fR1').value='';applyFlt();}});
+  if(S.r3)  chips.push({label:`3Y ≥ ${S.r3}%`,      clear:()=>{document.getElementById('fR3').value='';applyFlt();}});
+  if(S.r5)  chips.push({label:`5Y ≥ ${S.r5}%`,      clear:()=>{document.getElementById('fR5').value='';applyFlt();}});
+  if(S.exp) chips.push({label:`Exp ≤ ${S.exp}%`,     clear:()=>{document.getElementById('fExp').value='';applyFlt();}});
+  if(S.aum) chips.push({label:`AUM ≥ ₹${S.aum}Cr`,  clear:()=>{document.getElementById('fAUM').value='';applyFlt();}});
+
+  const el = document.getElementById('fchips');
+  if(!chips.length) { el.innerHTML=''; return; }
+  el.innerHTML = chips.map((c,i)=>
+    `<span class="fchip">${xe(c.label)}<button onclick="_clearChip(${i})" title="Remove">✕</button></span>`
+  ).join('');
+  // store clear fns temporarily
+  window._chipClearFns = chips.map(c=>c.clear);
+}
+window._clearChip = i => window._chipClearFns[i]?.();
+
+function sortC(col) {
+  S.dir = S.sort===col ? (S.dir==='desc'?'asc':'desc') : 'desc';
+  S.sort = col;
+  document.getElementById('sortBy').value = col;
+  document.getElementById('sortDir').value = S.dir;
+  loadFunds();
+}
+
+// ── Load Funds ──
+async function loadFunds() {
+  const p = new URLSearchParams({q:S.q,category:S.cat,fund_type:S.fundType,amc:S.amc,stars:S.stars.join(','),
+    min_ret1y:S.r1,min_ret3y:S.r3,min_ret5y:S.r5,max_exp:S.exp,min_aum:S.aum,
+    sort:S.sort,dir:S.dir,page:S.page,page_size:S.ps});
+  document.getElementById('resCount').textContent='Loading…';
+  const d = await api(`/api/funds?${p}`);
+  if(d) { renderTable(d); renderPager(d); updateSortHdr(); renderFilterChips(); }
+}
+
+function renderTable(d) {
+  document.getElementById('resCount').textContent = `${d.total.toLocaleString()} funds`;
+  const tb = document.getElementById('tbody');
+  if (!d.funds.length) {
+    tb.innerHTML = `<tr><td colspan="10"><div class="empty"><div class="emo">🔍</div><p>No funds match your filters.</p></div></td></tr>`;
+    return;
+  }
+  tb.innerHTML = d.funds.map(f => `
+    <tr onclick="openDrawer('${xe(f.secId)}')" class="${_curFund?.secId===f.secId?'sel':''}">
+      <td>
+        <div class="score-cell">
+          <div class="score-track"><div class="score-fill" style="width:${f.score}%;background:${sc(f.score)}"></div></div>
+          <span class="sv" style="color:${sc(f.score)}">${f.score.toFixed(1)}</span>
+        </div>
+      </td>
+      <td><span class="stars-s">${stars(f.stars)}</span></td>
+      <td style="max-width:200px">
+        <div style="font-weight:600;font-size:.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${xe(f.legalName||f.name)}">${xe(f.name)}</div>
+        <div style="font-size:.68rem;color:var(--sub);margin-top:1px">${xe(f.amc)}</div>
+      </td>
+      <td><span class="tag tc">${xe(trunc(f.category,22))}</span></td>
+      <td class="${rc(f.ret1y)}">${pct(f.ret1y)}</td>
+      <td class="${rc(f.ret3y)}">${pct(f.ret3y)}</td>
+      <td class="${rc(f.ret5y)}">${pct(f.ret5y)}</td>
+      <td>${f.expense!=null?`<span style="font-weight:600">${f.expense.toFixed(2)}%</span>`:'<span class="rz">—</span>'}</td>
+      <td class="aum-v">${f.aum!=null?'₹'+nfmt(f.aum):'<span class="rz">—</span>'}</td>
+      <td>${f.sharpe!=null?`<span style="font-weight:600;color:${f.sharpe>1?'var(--g)':f.sharpe>0?'var(--mu)':'var(--r)'}">${f.sharpe.toFixed(2)}</span>`:'<span class="rz">—</span>'}</td>
+    </tr>`).join('');
+}
+
+function renderPager(d) {
+  const start=(d.page-1)*d.pageSize+1, end=Math.min(d.page*d.pageSize,d.total);
+  document.getElementById('pgInfo').textContent = d.total>0?`${start}–${end} of ${d.total.toLocaleString()}`:'0 results';
+  const pages=d.pages||Math.ceil(d.total/(d.page_size||d.pageSize||50)); let h=`<button class="pb" onclick="goP(${d.page-1})" ${d.page<=1?'disabled':''}>‹</button>`;
+  pgRange(d.page,pages).forEach(p=>{
+    h += p==='…'?`<button class="pb" disabled>…</button>`:`<button class="pb ${p===d.page?'on':''}" onclick="goP(${p})">${p}</button>`;
+  });
+  h+=`<button class="pb" onclick="goP(${d.page+1})" ${d.page>=pages?'disabled':''}>›</button>`;
+  document.getElementById('pgBtns').innerHTML=h;
+}
+function pgRange(cur,tot) {
+  if(tot<=7) return Array.from({length:tot},(_,i)=>i+1);
+  if(cur<=4) return [1,2,3,4,5,'…',tot];
+  if(cur>=tot-3) return [1,'…',tot-4,tot-3,tot-2,tot-1,tot];
+  return [1,'…',cur-1,cur,cur+1,'…',tot];
+}
+function goP(p) { S.page=p; applyFlt(false); }
+
+function updateSortHdr() {
+  document.querySelectorAll('.ft th').forEach(t=>t.classList.remove('sorted'));
+  const el=document.getElementById(`th-${S.sort}`);
+  if(el){el.classList.add('sorted');el.querySelector('.sa').textContent=S.dir==='desc'?'↓':'↑';}
+}
+
+// ── Views ──
+function toggleView(v) {
+  document.getElementById('vTable').style.display    = v==='table'   ? 'flex':'none';
+  document.getElementById('vAnalysis').style.display = v==='analysis'? 'flex':'none';
+  document.getElementById('vAnalytics').style.display= v==='analytics'?'flex':'none';
+  document.getElementById('btnAnalysis').textContent  = v==='analysis' ? '← Fund List' : '📊 Analysis';
+  document.getElementById('btnAnalytics').textContent = v==='analytics'? '← Fund List' : '🔬 Analytics';
+  // Swap sidebars
+  document.getElementById('sbFunds').style.display     = v==='table'    ? 'flex':'none';
+  document.getElementById('sbAnalytics').style.display = v==='analytics'? 'flex':'none';
+  window.location.hash = v === 'table' ? '' : v;
+  if(v==='analysis')  renderAnalysis();
+  if(v==='analytics') { renderAnalytics(); if(_bulkPoll && !_anlData) _lastSavedAt = -1; }
+}
+
+// ── Drawer ──
+async function openDrawer(secId) {
+  _curFund = {secId};
+  _holdData = null;
+  _activeTab = 'overview';
+
+  document.getElementById('ov').classList.add('open');
+  document.getElementById('drw').classList.add('open');
+  document.getElementById('drwTitle').textContent = 'Loading…';
+  document.getElementById('drwSub').innerHTML = '';
+  document.getElementById('drwBody').innerHTML = '<div class="loader"><div class="spinner"></div> Loading…</div>';
+  setTabBadges('—','—','—');
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.tab==='overview'));
+
+  // Get fund row from IDB (via SW /api/funds)
+  const fr = await api(`/api/funds?q=${encodeURIComponent(secId)}&page=1&page_size=20`);
+  const fund = fr?.funds?.find(f=>f.secId===secId) || fr?.funds?.[0];
+  if (fund) {
+    _curFund = fund;
+    document.getElementById('drwTitle').textContent = fund.name;
+    document.getElementById('drwSub').innerHTML = buildSubLine(fund);
+  }
+
+  // Try IDB first (fast path)
+  let h = await api(`/api/holdings/${encodeURIComponent(secId)}`);
+
+  // If not cached, try live fetch via proxy (requires proxy + SAL headers configured)
+  if (!h) {
+    document.getElementById('drwBody').innerHTML = '<div class="loader"><div class="spinner"></div> Fetching from Morningstar…</div>';
+    const proxyConfig = await api('/api/config/proxy');
+    if (proxyConfig?.proxy) {
+      MFfetcher.setProxy(proxyConfig.proxy);
+      h = await api(`/api/holdings/fetch/${encodeURIComponent(secId)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: fund?.name || secId }),
+      });
+    }
+  }
+
+  _holdData = h;
+  if (h) {
+    if (!_curFund.name && h.name) {
+      document.getElementById('drwTitle').textContent = h.name;
+      document.getElementById('drwSub').innerHTML = buildSubLine({ category: h.category, amc: h.amc, secId, legalName: h.legalName, name: h.name });
+    }
+    setTabBadges(
+      h.numberOfEquityHolding || (h.equityHoldings||[]).length,
+      h.numberOfBondHolding   || (h.bondHoldings||[]).length,
+      h.numberOfOtherHolding  || (h.otherHoldings||[]).length
+    );
+    _swMsg('INVALIDATE_ANALYTICS');
+  }
+
+  renderTab('overview');
+}
+
+function buildSubLine(f, msUrl) {
+  if (!msUrl) {
+    const slug = msSlug(f.legalName||_curFund.legalName||f.name||_curFund.name||'');
+    const secId = f.secId||_curFund.secId||'';
+    msUrl = secId ? `https://www.morningstar.in/mutualfunds/${secId}/${slug}/overview.aspx` : '#';
+  }
+  return `
+    <span class="tag tc">${xe(f.category||'')}</span>
+    <span class="tag ta">${xe(f.amc||'')}</span>
+    <a href="${msUrl}" target="_blank" class="ms-link" id="msLink">View on Morningstar ↗</a>`;
+}
+
+function msSlug(name) {
+  return (name||'').replace(/\s+/g,'-').replace(/[^a-zA-Z0-9-]/g,'');
+}
+
+function setTabBadges(eq,bd,ot) {
+  document.getElementById('tbEq').textContent = eq;
+  document.getElementById('tbBd').textContent = bd;
+  document.getElementById('tbOt').textContent = ot;
+}
+
+function switchTab(tab) {
+  _activeTab = tab;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.tab===tab));
+  renderTab(tab);
+}
+
+function renderTab(tab) {
+  const el = document.getElementById('drwBody');
+  destroyCharts();
+  switch(tab) {
+    case 'overview':     el.innerHTML = renderOverview(); break;
+    case 'equity':       el.innerHTML = renderHoldingTable('equity'); break;
+    case 'bonds':        el.innerHTML = renderHoldingTable('bonds'); break;
+    case 'others':       el.innerHTML = renderHoldingTable('others'); break;
+    case 'allocation':   el.innerHTML = renderAllocation(); setTimeout(drawAllocChart,50); break;
+    case 'sectors':      el.innerHTML = renderSectors(); setTimeout(drawSectorChart,50); break;
+    case 'performance':  el.innerHTML = renderPerformance(); setTimeout(drawPerfChart,50); break;
+  }
+  el.scrollTop = 0;
+}
+
+// ── Overview Tab ──
+function renderOverview() {
+  const f = _curFund || {};
+  const h = _holdData || {};
+  const fm = h.financialMetrics || {};
+  const mc = h.marketCap || {};
+
+  const metrics = [
+    {l:'Score',   v: f.score?.toFixed(1),  cls: f.score>50?'pos':f.score>30?'':'neg'},
+    {l:'NAV',     v: f.nav!=null?'₹'+f.nav.toFixed(2):null},
+    {l:'Stars',   v: starsStr(f.stars), html:true},
+    {l:'As of',   v: f.navDate, cls:'muted'},
+    {l:'1Y Return',v:pct(f.ret1y), cls:rc(f.ret1y)},
+    {l:'3Y Return',v:pct(f.ret3y), cls:rc(f.ret3y)},
+    {l:'5Y Return',v:pct(f.ret5y), cls:rc(f.ret5y)},
+    {l:'Expense', v: f.expense!=null?f.expense.toFixed(2)+'%':null},
+    {l:'AUM',     v: f.aum!=null?'₹'+nfmt(f.aum)+' Cr':null},
+    {l:'Sharpe',  v: f.sharpe?.toFixed(2), cls:f.sharpe>1?'pos':f.sharpe>0?'':'neg'},
+    {l:'Alpha',   v: f.alpha!=null?(f.alpha>0?'+':'')+f.alpha.toFixed(2):null},
+    {l:'Beta',    v: f.beta?.toFixed(2)},
+  ];
+
+  let html = `<div class="m-grid">` +
+    metrics.map(m=>`<div class="mc"><div class="lbl">${m.l}</div>
+      <div class="val ${m.cls||''}">${m.html?m.v:(m.v||'—')}</div></div>`).join('') +
+    `</div>`;
+
+  // Portfolio summary
+  html += `<div class="sec-hdr">Portfolio Summary <span>As of ${h.portfolioDate||'—'}</span></div>`;
+  html += `<div class="info-list">` + [
+    ['Total Holdings',  h.numberOfHolding||'—'],
+    ['Equity Holdings', h.numberOfEquityHolding||'—'],
+    ['Bond Holdings',   h.numberOfBondHolding||'—'],
+    ['Other Holdings',  h.numberOfOtherHolding||'—'],
+    ['Category',        _curFund?.category||h.category||'—'],
+    ['Risk',            riskLbl(f.risk)],
+    ['Manager Tenure',  f.managerTenure!=null?f.managerTenure.toFixed(1)+' yrs':'—'],
+    ['Min Investment',  f.initialPurchase!=null?'₹'+f.initialPurchase.toLocaleString():'—'],
+  ].map(([k,v])=>`<div class="il-row"><span class="il-k">${k}</span><span class="il-v">${v}</span></div>`).join('') + `</div>`;
+
+  // Financial metrics
+  const fmRows = [
+    ['P/E Ratio',fm.priceToEarnings],['P/B Ratio',fm.priceToBook],
+    ['P/S Ratio',fm.priceToSales],['Return on Equity',fm.returnOnEquity!=null?fm.returnOnEquity.toFixed(1)+'%':null],
+    ['Net Margin',fm.netMargin!=null?fm.netMargin.toFixed(1)+'%':null],
+    ['Revenue Growth',fm.revenueGrowth!=null?fm.revenueGrowth.toFixed(1)+'%':null],
+    ['Earnings Growth',fm.earningsGrowth!=null?fm.earningsGrowth.toFixed(1)+'%':null],
+    ['Dividend Yield',fm.dividendYield!=null?fm.dividendYield.toFixed(2)+'%':null],
+    // Bond-specific
+    ['Yield to Maturity',fm.yieldToMaturity!=null?fm.yieldToMaturity.toFixed(2)+'%':null],
+    ['Eff. Duration',fm.effectiveDuration!=null?fm.effectiveDuration.toFixed(1)+' yrs':null],
+    ['Avg Credit Quality',fm.averageCreditQuality],
+  ].filter(([,v])=>v!=null);
+
+  if(fmRows.length) {
+    html += `<div class="sec-hdr">Financial Metrics</div><div class="info-list">` +
+      fmRows.map(([k,v])=>`<div class="il-row"><span class="il-k">${k}</span><span class="il-v">${xe(String(v))}</span></div>`).join('') + `</div>`;
+  }
+
+  // Market cap + Style Box side by side
+  const hasMarketCap = Object.values(mc).some(v=>v!=null);
+  if(hasMarketCap) {
+    html += `<div class="sec-hdr">Market Cap Breakdown</div>`;
+    html += `<div class="bar-list">` + [
+      ['Giant',mc.giant,'#7C3AED'],['Large',mc.large,'#2563EB'],
+      ['Mid',mc.medium,'#0F766E'],['Small',mc.small,'#D97706'],['Micro',mc.micro,'#DC2626'],
+    ].filter(([,v])=>v!=null).map(([lbl,v,clr])=>`
+      <div class="bar-item">
+        <div class="bar-name">${lbl}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${Math.min(v,100)}%;background:${clr}"></div></div>
+        <div class="bar-val">${v?.toFixed(1)}%</div>
+      </div>`).join('') + `</div>`;
+  }
+
+  // Style box
+  if(f.styleBox || h.styleBox) {
+    html += `<div class="sec-hdr">Equity Style Box</div>`;
+    html += renderStyleBox(f.styleBox||h.styleBox);
+  }
+
+  // Fund managers
+  if(h.managers?.length) {
+    html += `<div class="sec-hdr">Fund Managers <span>Inception: ${h.inceptionDate||'—'}</span></div>`;
+    html += `<div class="info-list">` + h.managers.map(m=>
+      `<div class="il-row">
+        <span class="il-k">${xe(m.name)}</span>
+        <span class="il-v" style="font-size:.72rem;color:var(--mu)">Since ${m.startDate||'—'}${m.tenure!=null?' · '+m.tenure.toFixed(1)+' yrs':''}</span>
+      </div>`
+    ).join('') + `</div>`;
+  }
+
+  return html;
+}
+
+// ── Holdings Tab ──
+function renderHoldingTable(type) {
+  const map = {equity:'equityHoldings', bonds:'bondHoldings', others:'otherHoldings'};
+  if(!_holdData) return `<div class="loader"><div class="spinner"></div>Loading holdings…</div>`;
+
+  const list = (_holdData[map[type]]||[]).slice().sort((a,b)=>(b.weighting||0)-(a.weighting||0));
+  if(!list.length) return `<div class="empty"><div class="emo">📭</div><p>No ${type} holdings data available for this fund.</p></div>`;
+
+  const isEq = type==='equity', isBd = type==='bonds';
+  const maxW = Math.max(...list.map(h=>h.weighting||0), 1);
+  const totalW = list.reduce((s,h)=>s+(h.weighting||0),0);
+
+  // Actual total count from API (might differ from shown list length)
+  const totalCount = type==='equity' ? (_holdData.numberOfEquityHolding||list.length)
+                   : type==='bonds'  ? (_holdData.numberOfBondHolding||list.length)
+                   : (_holdData.numberOfOtherHolding||list.length);
+  const showing = list.length, isPartial = showing < totalCount;
+
+  // Header summary bar
+  let html = `
+  <div style="background:var(--as);border-radius:8px;padding:10px 12px;margin-bottom:12px;display:flex;gap:16px;flex-wrap:wrap;align-items:center">
+    <span style="font-size:.78rem;font-weight:700;color:var(--a)">
+      ${isPartial ? `Showing <b>${showing}</b> of <b>${totalCount}</b> ${type} holdings` : `<b>${showing}</b> ${type} holdings`}
+    </span>
+    <span style="font-size:.75rem;color:var(--mu)">Portfolio date: <strong>${_holdData.portfolioDate||'—'}</strong></span>
+    <span style="font-size:.75rem;color:var(--mu)">Total weight shown: <strong>${totalW.toFixed(1)}%</strong></span>
+  </div>`;
+
+  // Credit quality for bonds
+  if(isBd && _holdData.creditQuality?.length) {
+    html += renderCreditQualityInline(_holdData.creditQuality);
+  }
+
+  html += `<div class="ht-wrap"><table class="ht"><thead><tr>
+    <th style="width:28px">#</th>
+    <th>Security</th>
+    <th style="min-width:130px">% Portfolio Weight</th>
+    ${isEq ? `
+      <th>Sector</th>
+      <th title="1-Year Return">1Y Return</th>
+      <th title="Economic Moat">Moat</th>
+      <th title="ESG Risk Score (lower is better)">ESG Risk</th>
+      <th title="Share change (quarterly)">Δ Shares</th>
+      <th title="First date this security was bought">First Bought</th>
+    ` : ''}
+    ${isBd ? `
+      <th>Coupon</th>
+      <th>Maturity</th>
+      <th>Currency</th>
+    ` : ''}
+    ${type==='others' ? `<th>Type</th><th>Country</th>` : ''}
+  </tr></thead><tbody>`;
+
+  list.forEach((h,i) => {
+    const wt  = h.weighting || 0;
+    const barW = Math.round(wt / maxW * 100);
+    const moat = h.economicMoat || '';
+    const moatCls = moat.toLowerCase()==='wide' ? 'wide' : moat.toLowerCase()==='narrow' ? 'narrow' : 'none';
+    const esgScore = h.susEsgRiskScore;
+    const esgCls   = esgScore!=null ? (esgScore<15?'low':esgScore<30?'med':'high') : '';
+    const chg = h.shareChange;
+    const chgTxt = chg!=null ? `<span class="${chg>0?'rp':chg<0?'rn':'rz'}">${chg>0?'▲':chg<0?'▼':'–'}${chg!=0?Math.abs(chg).toFixed(1)+'%':''}</span>` : '—';
+    const trend = (h.holdingTrend||[]).length>=2 ? renderTrendBars(h.holdingTrend) : '';
+    const ret1y = h.totalReturn1Year;
+
+    html += `<tr>
+      <td><div class="rank-dot">${i+1}</div></td>
+      <td style="max-width:160px">
+        <div style="font-weight:700;font-size:.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${xe(h.securityName)}">${xe(h.securityName)}</div>
+        <div style="font-size:.65rem;color:var(--sub);margin-top:1px">${h.ticker?`<b>${xe(h.ticker)}</b> ·`:''} ${h.isin||''}</div>
+      </td>
+      <td>
+        <div class="wt-bar">
+          <div class="wt-bg"><div class="wt-fill" style="width:${barW}%;background:${wt>5?'var(--a)':wt>2?'#2563EB':'#93C5FD'}"></div></div>
+          <span class="wt-pct" style="font-weight:700;color:var(--ink)">${wt.toFixed(2)}%</span>
+        </div>
+        ${h.marketValue ? `<div style="font-size:.65rem;color:var(--sub);margin-top:1px">₹${(h.marketValue/1e7).toFixed(1)} Cr · ${h.numberOfShare ? nfmt(h.numberOfShare)+' shares' : ''}</div>` : ''}
+      </td>
+      ${isEq ? `
+        <td><span class="sector-tag">${xe(h.sector||'—')}</span></td>
+        <td class="${rc2(ret1y)}">${ret1y!=null?(ret1y>0?'+':'')+ret1y.toFixed(1)+'%':'—'}</td>
+        <td><span class="moat ${moatCls}">${moat||'—'}</span></td>
+        <td>
+          ${esgScore!=null ? `<span class="esg ${esgCls}" title="${h.susEsgRiskCategory||''}">${esgScore.toFixed(1)}</span>` : '—'}
+        </td>
+        <td>${chgTxt} ${trend}</td>
+        <td style="font-size:.68rem;color:var(--sub)">${h.firstBoughtDate||'—'}</td>
+      ` : ''}
+      ${isBd ? `
+        <td style="font-weight:600">${h.coupon!=null ? h.coupon.toFixed(2)+'%' : '—'}</td>
+        <td style="font-size:.72rem;white-space:nowrap">${h.maturityDate||'—'}</td>
+        <td style="font-size:.72rem">${h.currency||'INR'}</td>
+      ` : ''}
+      ${type==='others' ? `
+        <td><span class="tag tc">${xe(h.holdingType||'—')}</span></td>
+        <td style="font-size:.72rem">${h.country||'—'}</td>
+      ` : ''}
+    </tr>`;
+  });
+
+  html += `</tbody></table></div>`;
+  return html;
+}
+
+function renderCreditQualityInline(cq) {
+  if(!cq?.length) return '';
+  const max = Math.max(...cq.map(x=>x.value),1);
+  return `<div style="background:var(--c);border-radius:8px;padding:10px 12px;margin-bottom:12px">
+    <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--sub);margin-bottom:8px">Credit Quality Breakdown</div>
+    ${cq.map(c=>`<div class="bar-item" style="margin-bottom:5px">
+      <div class="bar-name" style="min-width:80px;font-weight:700">${c.rating}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${(c.value/max*100).toFixed(0)}%;background:${c.rating==='AAA'?'var(--g)':c.rating==='AA'?'var(--a)':c.rating==='A'?'var(--bl)':'var(--am)'}"></div></div>
+      <div class="bar-val">${c.value.toFixed(1)}%</div>
+    </div>`).join('')}
+  </div>`;
+}
+
+function renderTrendBars(vals) {
+  const max = Math.max(...vals.map(Math.abs),1);
+  return `<div class="trend-bars">` +
+    vals.slice(-5).map(v=>`<div class="trend-bar" style="height:${Math.max(2,Math.round(v/max*14))}px;background:${v>=0?'var(--g)':'var(--r)'}"></div>`).join('') +
+  `</div>`;
+}
+
+// ── Allocation Tab ──
+function renderAllocation() {
+  const a = _holdData?.assetAllocation || {};
+  const items = [
+    {l:'Stock',       v:a.stock,       c:'#0F766E'},
+    {l:'Bond',        v:a.bond,        c:'#1D4ED8'},
+    {l:'Cash',        v:a.cash,        c:'#6D28D9'},
+    {l:'Other',       v:a.other,       c:'#B45309'},
+    {l:'Convertible', v:a.convertible, c:'#DC2626'},
+    {l:'Preferred',   v:a.preferred,   c:'#7C3AED'},
+  ].filter(x=>x.v!=null&&x.v!==0);
+
+  if(!items.length) return `<div class="empty"><div class="emo">📊</div><p>Allocation data not available.</p></div>`;
+
+  return `
+    <div class="sec-hdr">Asset Allocation <span>As of ${a.asOfDate||_holdData?.portfolioDate||'—'}</span></div>
+    <div class="chart-row">
+      <div class="chart-card">
+        <h4>Allocation Mix</h4>
+        <div class="chart-wrap"><canvas id="allocChart"></canvas></div>
+      </div>
+      <div class="chart-card" style="display:flex;flex-direction:column;justify-content:center">
+        <h4>Breakdown</h4>
+        <div class="bar-list" id="allocBars">
+          ${items.map(it=>`
+            <div class="bar-item">
+              <div class="bar-name"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${it.c};margin-right:6px"></span>${it.l}</div>
+              <div class="bar-track"><div class="bar-fill" style="width:${it.v.toFixed(0)}%;background:${it.c}"></div></div>
+              <div class="bar-val">${it.v.toFixed(1)}%</div>
+            </div>`).join('')}
+        </div>
+      </div>
+    </div>`;
+}
+
+function drawAllocChart() {
+  const a = _holdData?.assetAllocation || {};
+  const items = [
+    {l:'Stock',v:a.stock,c:'#0F766E'},{l:'Bond',v:a.bond,c:'#1D4ED8'},
+    {l:'Cash',v:a.cash,c:'#6D28D9'},{l:'Other',v:a.other,c:'#B45309'},
+  ].filter(x=>x.v!=null&&x.v!==0);
+  const ctx = document.getElementById('allocChart');
+  if(!ctx) return;
+  destroyCharts();
+  _charts.alloc = new Chart(ctx, {
+    type:'doughnut',
+    data:{labels:items.map(x=>x.l),datasets:[{data:items.map(x=>x.v),backgroundColor:items.map(x=>x.c),borderWidth:2,borderColor:'#fff',hoverOffset:6}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:11},boxWidth:12}},tooltip:{callbacks:{label:c=>`${c.label}: ${c.parsed.toFixed(1)}%`}}},cutout:'65%'}
+  });
+}
+
+// ── Sectors Tab ──
+function renderSectors() {
+  const eq = (_holdData?.equitySectors||[]).filter(s=>s.fund!=null);
+  const fi = (_holdData?.fixedIncomeSectors||[]).filter(s=>s.fund!=null);
+  if(!eq.length && !fi.length) return `<div class="empty"><div class="emo">🏢</div><p>Sector data not available.</p></div>`;
+
+  const maxEq = Math.max(...eq.map(s=>s.fund||0),1);
+  const maxFI = Math.max(...fi.map(s=>s.fund||0),1);
+
+  let html = '';
+  if(eq.length) {
+    html += `<div class="sec-hdr">Equity Sectors</div>
+      <div class="chart-row" style="grid-template-columns:1fr">
+        <div class="chart-card"><h4>Sector Allocation vs Category Avg</h4>
+          <div class="chart-wrap" style="height:${Math.max(160,eq.length*22)}px"><canvas id="eqSectorChart"></canvas></div>
+        </div>
+      </div>`;
+  }
+  if(fi.length) {
+    html += `<div class="sec-hdr">Fixed Income Sectors</div>
+      <div class="bar-list">` +
+      fi.sort((a,b)=>(b.fund||0)-(a.fund||0)).map(s=>`
+        <div class="bar-item">
+          <div class="bar-name">${xe(s.name)}</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${((s.fund||0)/maxFI*100).toFixed(0)}%;background:#1D4ED8"></div></div>
+          <div class="bar-val">${(s.fund||0).toFixed(1)}%</div>
+          ${s.category!=null?`<div style="font-size:.65rem;color:var(--sub);min-width:44px">cat:${s.category.toFixed(1)}%</div>`:''}
+        </div>`).join('') + `</div>`;
+  }
+  return html;
+}
+
+function drawSectorChart() {
+  const eq = (_holdData?.equitySectors||[]).filter(s=>s.fund!=null).sort((a,b)=>(b.fund||0)-(a.fund||0));
+  const ctx = document.getElementById('eqSectorChart');
+  if(!ctx||!eq.length) return;
+  destroyCharts();
+  const COLORS = ['#0F766E','#1D4ED8','#6D28D9','#B45309','#DC2626','#059669','#7C3AED','#D97706','#0369A1','#15803D','#9333EA','#E11D48'];
+  _charts.sector = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels:eq.map(s=>s.name),
+      datasets:[
+        {label:'Fund %',  data:eq.map(s=>s.fund||0),  backgroundColor:COLORS.map(c=>c+'CC'), borderRadius:4},
+        {label:'Category%',data:eq.map(s=>s.category||0),backgroundColor:eq.map((_,i)=>COLORS[i%COLORS.length]+'44'),borderRadius:4},
+      ]
+    },
+    options:{
+      indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'top',labels:{font:{size:10},boxWidth:10}},
+               tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.x.toFixed(1)}%`}}},
+      scales:{x:{ticks:{font:{size:10},callback:v=>v+'%'},grid:{color:'#f0f0f0'}},
+              y:{ticks:{font:{size:10}}}}
+    }
+  });
+}
+
+// ── Performance Tab ──
+function renderPerformance() {
+  const ph = _holdData?.performanceHistory || {};
+  const cols = ph.columns || [];
+  const rows = ph.rows || {};
+  if(!cols.length || (!rows.fund && !rows.category))
+    return `<div class="empty"><div class="emo">📈</div><p>Performance data not available.</p></div>`;
+
+  const fund = rows.fund || [];
+  const cat  = rows.category || [];
+  const rank = rows.percentileRank || [];
+
+  let html = `<div class="sec-hdr">Annual Performance <span>Fund vs Category</span></div>`;
+  html += `<div class="chart-card" style="margin-bottom:14px">
+    <h4>Annual Returns</h4>
+    <div class="chart-wrap" style="height:200px"><canvas id="perfChart"></canvas></div>
+  </div>`;
+
+  html += `<div class="sec-hdr">Year-by-Year Detail</div>`;
+  html += `<table class="ht"><thead><tr>
+    <th>Year</th>
+    <th style="text-align:right">Fund</th>
+    <th style="text-align:right">Category</th>
+    <th style="text-align:right">vs Cat</th>
+    <th style="text-align:right">Pct Rank</th>
+  </tr></thead><tbody>`;
+  cols.forEach((col, i) => {
+    const f = fund[i], c = cat[i], r = rank[i];
+    const diff = (f != null && c != null) ? f - c : null;
+    html += `<tr>
+      <td style="font-weight:700">${xe(String(col))}</td>
+      <td style="text-align:right" class="${rc(f)}">${f!=null?(f>0?'+':'')+f.toFixed(1)+'%':'—'}</td>
+      <td style="text-align:right;color:var(--mu)">${c!=null?(c>0?'+':'')+c.toFixed(1)+'%':'—'}</td>
+      <td style="text-align:right" class="${rc(diff)}">${diff!=null?(diff>0?'+':'')+diff.toFixed(1)+'%':'—'}</td>
+      <td style="text-align:right;color:var(--sub)">${r!=null?r.toFixed(0):'—'}</td>
+    </tr>`;
+  });
+  html += `</tbody></table>`;
+  return html;
+}
+
+function drawPerfChart() {
+  const ph = _holdData?.performanceHistory || {};
+  const cols = ph.columns || [];
+  const rows = ph.rows || {};
+  const ctx = document.getElementById('perfChart');
+  if(!ctx || !cols.length) return;
+  _charts.perf = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: cols.map(String),
+      datasets: [
+        {label:'Fund %',     data:rows.fund||[],     backgroundColor:'#0F766ECC', borderRadius:4},
+        {label:'Category %', data:rows.category||[], backgroundColor:'#1D4ED855', borderRadius:4, borderColor:'#1D4ED8', borderWidth:1},
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{position:'top',labels:{font:{size:10},boxWidth:10}},
+        tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y!=null?(c.parsed.y>0?'+':'')+c.parsed.y.toFixed(1)+'%':'—'}`}}
+      },
+      scales:{
+        x:{ticks:{font:{size:10}},grid:{color:'#f5f5f5'}},
+        y:{ticks:{font:{size:10},callback:v=>v+'%'},grid:{color:'#f5f5f5'}}
+      }
+    }
+  });
+}
+
+function destroyCharts() {
+  Object.values(_charts).forEach(c=>c.destroy());
+  _charts = {};
+}
+
+// ── Style Box ──
+function renderStyleBox(n) {
+  const labels=['Val','Bld','Gro','Val','Bld','Gro','Val','Bld','Gro'];
+  const rowLabels=['Large','Mid','Small'];
+  const boxLabel = n ? `${rowLabels[Math.floor((n-1)/3)]} ${['Value','Blend','Growth'][(n-1)%3]}` : '—';
+  return `<div style="display:flex;align-items:center;gap:12px">
+    <div class="style-box">
+      ${Array.from({length:9},(_,i)=>`<div class="sb-cell ${i+1===n?'on':''}" title="${rowLabels[Math.floor(i/3)]} ${labels[i]}">${i+1===n?'●':''}</div>`).join('')}
+    </div>
+    <div style="font-size:.75rem;color:var(--mu)">
+      <div style="font-weight:700;margin-bottom:3px">${boxLabel}</div>
+      <div style="font-size:.68rem">Rows: Large / Mid / Small</div>
+      <div style="font-size:.68rem">Cols: Value / Blend / Growth</div>
+    </div>
+  </div>`;
+}
+
+function closeDrawer() {
+  document.getElementById('ov').classList.remove('open');
+  document.getElementById('drw').classList.remove('open');
+  destroyCharts();
+}
+
+// ── Analytics bulk fetch — runs entirely in page context (SW is stateless) ──
+let _bulkPoll = null, _lastSavedAt = -1;
+let _bulkStopFlag = false, _bulkRunning = false;
+
+async function bulkFetch() {
+  if (_bulkRunning) { toast('Bulk fetch already running'); return; }
+  const btn = document.getElementById('anlFetchAllBtn');
+  btn.disabled = true;
+
+  // Ensure proxy is configured
+  const cfg = await api('/api/config/proxy');
+  if (!cfg?.proxy) {
+    btn.disabled = false;
+    toast('Configure proxy URL in ⚙ Setup first'); openSetup(); return;
+  }
+  MFfetcher.setProxy(cfg.proxy);
+
+  // Get SAL headers (auto-fetches JWT if needed)
+  let hdrs = await MFfetcher.getSALHeaders().catch(() => null);
+  if (!hdrs) {
+    btn.disabled = false;
+    toast('SAL auth not available — open ⚙ Setup to paste headers'); openSetup(); return;
+  }
+
+  // Get full fund list from IDB
+  const funds = await MFidb.getFunds();
+  if (!funds.length) {
+    btn.disabled = false;
+    toast('No funds loaded — click ↻ Refresh first'); return;
+  }
+
+  _bulkRunning = true;
+  _bulkStopFlag = false;
+
+  // Signal SW to clear stopped flag
+  await api('/api/analytics/bulk-fetch', { method: 'POST' });
+
+  const total = funds.length;
+  const cachedKeys = new Set(await MFidb.getAllHoldingKeys());
+  const todo = funds.filter(f => !cachedKeys.has(f.secId));
+  let done = total - todo.length;
+  let errors = 0;
+
+  const _saveState = async (running, stopped) => {
+    const payload = { running, done, total, errors, stop: false, stopped, savedAt: Date.now() };
+    await MFidb.setBulkState(payload);
+    _swMsg('BULK_UPDATE', payload);
+  };
+
+  await _saveState(true, false);
+  _setBulkUI(true, Math.round(done / total * 100), `${done.toLocaleString()} / ${total.toLocaleString()} (${Math.round(done/total*100)}%)`, false);
+  _scheduleAnlRefresh();
+
+  const CONCURRENCY = 5;
+  let idx = 0;
+
+  const worker = async () => {
+    while (idx < todo.length) {
+      if (_bulkStopFlag) break;
+      const fund = todo[idx++];
+      if (!fund) break;
+      try {
+        const data = await MFfetcher.fetchHoldingsMini(
+          fund.secId,
+          fund.name || fund.legalName || fund.secId,
+          fund.categoryName || fund.category || '',
+          hdrs
+        );
+        if (data) await MFidb.saveHolding(data);
+      } catch { errors++; }
+      done++;
+      const pct = Math.round(done / total * 100);
+      _setBulkUI(true, pct, `${done.toLocaleString()} / ${total.toLocaleString()} (${pct}%)`, false);
+      if (done % 20 === 0) {
+        await _saveState(true, false);
+        _swMsg('INVALIDATE_ANALYTICS');
+      }
+      // Polite delay between requests
+      await new Promise(r => setTimeout(r, 120));
+    }
+  };
+
+  await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+
+  _bulkRunning = false;
+  clearInterval(_anlRefreshTimer); _anlRefreshTimer = null;
+
+  if (_bulkStopFlag) {
+    await _saveState(false, true);
+    const stxt = document.getElementById('anlStoppedTxt');
+    if (stxt) stxt.textContent = `Stopped at ${done.toLocaleString()} / ${total.toLocaleString()}`;
+    _setBulkUI(false, Math.round(done / total * 100), '', true);
+    toast('Bulk fetch stopped');
+  } else {
+    await _saveState(false, false);
+    _swMsg('INVALIDATE_ANALYTICS');
+    _setBulkUI(false, 100, '', false);
+    toast(`Analytics complete — ${total.toLocaleString()} funds`);
+    const d = await api('/api/analytics');
+    if (d) { _anlData = d; if (document.getElementById('vAnalytics').style.display !== 'none') { _renderAnlView(); _renderAnlSidebar(); } }
+  }
+
+  btn.disabled = false;
+}
+
+async function bulkStop() {
+  _bulkStopFlag = true;
+  toast('Stopping after current requests…');
+}
+
+async function bulkResume() {
+  bulkFetch();
+}
+
+async function bulkRestart() {
+  const r = await api('/api/analytics/bulk-restart', { method: 'POST' });
+  if (!r) { toast('Could not restart'); return; }
+  toast('Restarting from scratch…');
+  _setBulkUI(false, 0, '', false);
+  bulkFetch();
+}
+
+// running=true → show progress bar
+// running=false, stopped=true → show resume/restart buttons
+// running=false, stopped=false → show main fetch button
+function _setBulkUI(running, pct, txt, stopped) {
+  const lp  = document.getElementById('anlBulkProgress');
+  const ls  = document.getElementById('anlBulkStopped');
+  const btn = document.getElementById('anlFetchAllBtn');
+
+  if(lp)  lp.style.display = running ? 'flex' : 'none';
+  if(ls)  ls.style.display = (!running && stopped) ? 'flex' : 'none';
+  if(btn) btn.style.display = (!running && !stopped) ? '' : 'none';
+  if(btn && !running && !stopped) { btn.disabled = false; btn.textContent = '⬇ Fetch All 13K Funds'; }
+
+  const lpBar = document.getElementById('anlProgressBar');
+  const lpTxt = document.getElementById('anlProgressTxt');
+  if(lpBar) lpBar.style.width = pct + '%';
+  if(lpTxt) lpTxt.textContent = txt;
+
+  // Global top bar + pill
+  document.getElementById('gfpBar').style.width = running ? pct+'%' : '0%';
+  const pill = document.getElementById('gfpPill');
+  pill.style.display = running ? 'flex' : 'none';
+  document.getElementById('gfpTxt').textContent = txt;
+}
+
+let _anlRefreshTimer = null;
+
+function _scheduleAnlRefresh() {
+  // Refresh analytics view every 5s while bulk fetch is running
+  if(_anlRefreshTimer) return;
+  _anlRefreshTimer = setInterval(async () => {
+    if(!_bulkPoll) { clearInterval(_anlRefreshTimer); _anlRefreshTimer = null; return; }
+    const d = await api('/api/analytics');
+    if(d) {
+      _anlData = d;
+      if(document.getElementById('vAnalytics').style.display !== 'none') { _renderAnlView(); _renderAnlSidebar(); }
+    }
+  }, 5000);
+}
+
+// startBulkPoll is a no-op in the static version; bulk runs in-page via bulkFetch()
+function startBulkPoll() {}
+
+// Check on load whether a previous bulk run was stopped / left in progress
+async function checkBulkStatus() {
+  const s = await MFidb.getBulkState();
+  if (!s) { _setBulkUI(false, 0, '', false); return; }
+  const pct = s.total > 0 ? Math.round(s.done / s.total * 100) : 0;
+  if (s.stopped) {
+    const stxt = document.getElementById('anlStoppedTxt');
+    if (stxt) stxt.textContent = `Stopped at ${s.done.toLocaleString()} / ${(s.total||0).toLocaleString()}`;
+    _setBulkUI(false, pct, '', true);
+  } else if (s.running) {
+    // Was interrupted by page close — treat as stopped
+    const stxt = document.getElementById('anlStoppedTxt');
+    if (stxt) stxt.textContent = `Interrupted at ${s.done.toLocaleString()} / ${(s.total||0).toLocaleString()}`;
+    _setBulkUI(false, pct, '', true);
+    // Mark as stopped in IDB so resume works correctly
+    await MFidb.setBulkState({ ...s, running: false, stopped: true });
+  } else {
+    _setBulkUI(false, 0, '', false);
+  }
+}
+
+// ── Analytics ──
+let _anlData = null, _anlTab = 'equity', _anlSort = {col:'fundCount',dir:'desc'}, _anlQ = '', _anlSectors = new Set(), _anlMinFunds = 0;
+
+async function renderAnalytics() {
+  const el = document.getElementById('anlContent');
+  el.innerHTML = '<div class="loader"><div class="spinner"></div> Aggregating holdings…</div>';
+  const d = await api('/api/analytics');
+  _anlData = d;
+  if(!d) { el.innerHTML = '<div class="no-data-msg"><div class="emo">⚠️</div><p>Failed to load analytics.</p></div>'; return; }
+  _renderAnlView();
+  _renderAnlSidebar();
+}
+
+function _renderAnlView() {
+  const d = _anlData;
+  const el = document.getElementById('anlContent');
+  if(!d) return;
+
+  const totalEquities = d.totalEquities || 0;
+  const totalBonds    = d.totalBonds    || 0;
+  const fa            = d.fundsAnalyzed || 0;
+
+  // Update toolbar badge
+  const badge = document.getElementById('anlFundsBadge');
+  if(badge) badge.innerHTML = `<span style="background:var(--as);color:var(--a);font-size:.72rem;font-weight:700;padding:3px 10px;border-radius:20px">Based on ${fa.toLocaleString()} mutual fund${fa!==1?'s':''}</span>`;
+
+  const eqFunds = (d.equities||[]).reduce((s,e)=>Math.max(s,e.fundCount),0) > 0
+    ? [...new Set((d.equities||[]).flatMap(e=>(e.topFunds||[]).map(f=>f.secId)))].length : 0;
+
+  let html = `
+    <div style="background:linear-gradient(135deg,var(--as),#E0FDF4);border:1px solid #99F6E4;border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <span style="font-size:1.6rem;font-weight:800;color:var(--a)">${fa.toLocaleString()}</span>
+      <div>
+        <div style="font-size:.82rem;font-weight:700;color:var(--ink)">Mutual Funds Fetched &amp; Analysed</div>
+        <div style="font-size:.72rem;color:var(--mu)">${totalEquities.toLocaleString()} unique equities · ${totalBonds.toLocaleString()} unique bonds · ${(d.sectors||[]).length} sectors</div>
+      </div>
+    </div>
+    <div class="anl-stat-row">
+      <div class="anl-stat"><div class="lbl">Unique Equities</div><div class="val">${totalEquities.toLocaleString()}</div></div>
+      <div class="anl-stat"><div class="lbl">Unique Bonds</div><div class="val">${totalBonds.toLocaleString()}</div></div>
+      <div class="anl-stat"><div class="lbl">Sectors Covered</div><div class="val">${(d.sectors||[]).length}</div></div>
+    </div>`;
+
+  if(d.fundsAnalyzed === 0) {
+    html += `<div class="no-data-msg">
+      <div class="emo">📂</div>
+      <p style="font-weight:600;margin-bottom:6px">No holdings data yet</p>
+      <p style="font-size:.8rem">Click any fund in the list to load its holdings. Analytics will populate as you browse.</p>
+    </div>`;
+    el.innerHTML = html; return;
+  }
+
+  // Sub-tabs
+  html += `<div class="anl-tabs">
+    <button class="anl-tab ${_anlTab==='equity'?'on':''}"  onclick="_anlSwitchTab('equity')">Equities <span class="anl-badge">${totalEquities}</span></button>
+    <button class="anl-tab ${_anlTab==='bonds'?'on':''}"   onclick="_anlSwitchTab('bonds')">Bonds <span class="anl-badge">${totalBonds}</span></button>
+    <button class="anl-tab ${_anlTab==='sectors'?'on':''}" onclick="_anlSwitchTab('sectors')">Sectors <span class="anl-badge">${(d.sectors||[]).length}</span></button>
+    <button class="anl-tab ${_anlTab==='finder'?'on':''}"  onclick="_anlSwitchTab('finder')">🎯 Fund Finder</button>
+  </div>`;
+
+  // Count label row (compact, sidebar handles search/filter)
+  if(_anlTab !== 'sectors') {
+    html += `<div style="margin-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      ${[..._anlSectors].map(s=>`<span class="fchip">${xe(s)}<button onclick="_anlToggleSector('${xe(s).replace(/'/g,"\\'")}')">×</button></span>`).join('')}
+      <span style="font-size:.75rem;color:var(--sub);margin-left:auto" id="anlCountLbl"></span>
+    </div>`;
+  }
+
+  if(_anlTab === 'finder') {
+    html += `<div id="anlTableWrap"></div>`;
+    el.innerHTML = html;
+    _renderFinderTab();
+    return;
+  }
+
+  html += `<div id="anlTableWrap"></div>`;
+  el.innerHTML = html;
+
+  _renderAnlTable();
+}
+
+function _anlSwitchTab(tab) {
+  _anlTab = tab;
+  if(tab !== 'finder') { _anlQ = ''; _anlSort = {col:'fundCount',dir:'desc'}; _anlSectors = new Set(); _anlMinFunds = 0; }
+  _renderAnlView();
+  _renderAnlSidebar();
+}
+
+function _anlSearchChange(q) {
+  _anlQ = q;
+  _renderAnlTable();
+  // Keep sidebar search input in sync without full re-render
+  const sb = document.getElementById('sbAnlSearch');
+  if(sb && document.activeElement !== sb) sb.value = q;
+}
+
+function _anlSortBy(col) {
+  if(_anlSort.col === col) _anlSort.dir = _anlSort.dir==='desc'?'asc':'desc';
+  else { _anlSort.col = col; _anlSort.dir = 'desc'; }
+  _renderAnlTable();
+}
+
+function _anlAddSector(s) {
+  if(!s) return;
+  _anlSectors.add(s);
+  _renderAnlView();
+  _renderAnlSidebar();
+}
+function _anlToggleSector(s) {
+  _anlSectors.delete(s);
+  _renderAnlView();
+  _renderAnlSidebar();
+}
+function _anlClearSectors() {
+  _anlSectors.clear();
+  _renderAnlView();
+  _renderAnlSidebar();
+}
+
+function _renderAnlSidebar() {
+  const inner = document.getElementById('sbAnlInner');
+  if(!inner) return;
+  const d = _anlData;
+
+  // Sector list (equities only)
+  const allSectors = (d && _anlTab === 'equity')
+    ? [...new Set((d.equities||[]).map(e=>e.sector||'').filter(Boolean))].sort()
+    : [];
+
+  // Bulk fetch status
+  const bulkRunning = !!document.getElementById('anlBulkProgress')?.style.display?.includes('flex');
+
+  inner.innerHTML = `
+    <!-- View tabs -->
+    <div class="fl-label">View</div>
+    <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:4px">
+      ${[['equity','📈 Equities'],['bonds','🏛 Bonds'],['sectors','🏷 Sectors'],['finder','🎯 Fund Finder']].map(([tab,lbl])=>
+        `<button class="btn ${_anlTab===tab?'btn-pri':'btn-sec'}" style="justify-content:flex-start;font-size:.78rem;padding:6px 10px"
+          onclick="_anlSwitchTab('${tab}')">${lbl}</button>`
+      ).join('')}
+    </div>
+    <div class="div"></div>
+
+    ${_anlTab !== 'finder' ? `
+    <!-- Search -->
+    <div class="fl">
+      <div class="fl-label">Search</div>
+      <input type="search" class="fi" id="sbAnlSearch" placeholder="${_anlTab==='equity'?'Name, ticker, sector…':_anlTab==='bonds'?'Name, ticker, rating…':'Sector name…'}"
+        value="${xe(_anlQ)}" oninput="_anlSearchChange(this.value)">
+    </div>
+
+    <!-- Min fund count -->
+    <div class="fl">
+      <div class="fl-label">Min Funds Holding</div>
+      <input type="number" class="fi" id="sbAnlMinFunds" placeholder="e.g. 5" min="0" step="1"
+        value="${_anlMinFunds||''}" oninput="_anlSetMinFunds(this.value)">
+    </div>
+
+    ${allSectors.length ? `
+    <div class="div"></div>
+    <div class="fl">
+      <div class="fl-label">Sector Filter</div>
+      <select class="fi" onchange="_anlAddSector(this.value);this.value=''">
+        <option value="">+ Add sector…</option>
+        ${allSectors.map(s=>`<option value="${xe(s)}"${_anlSectors.has(s)?' disabled':''}>${xe(s)}</option>`).join('')}
+      </select>
+      ${[..._anlSectors].map(s=>`
+        <span class="fchip" style="margin-top:3px">${xe(s)}
+          <button onclick="_anlToggleSector('${xe(s).replace(/'/g,"\\'")}')">×</button>
+        </span>`).join('')}
+    </div>` : ''}
+
+    <div class="div"></div>
+    <!-- Sort -->
+    <div class="fl">
+      <div class="fl-label">Sort By</div>
+      <select class="fi" onchange="_anlSortFromSb(this.value)">
+        <option value="fundCount" ${_anlSort.col==='fundCount'?'selected':''}>Funds Holding</option>
+        <option value="name"      ${_anlSort.col==='name'?'selected':''}>Name</option>
+        <option value="avgWeight" ${_anlSort.col==='avgWeight'?'selected':''}>Avg Weight%</option>
+        ${_anlTab==='equity'?`<option value="sector" ${_anlSort.col==='sector'?'selected':''}>Sector</option>`:''}
+      </select>
+      <select class="fi" onchange="_anlDirFromSb(this.value)">
+        <option value="desc" ${_anlSort.dir==='desc'?'selected':''}>↓ High first</option>
+        <option value="asc"  ${_anlSort.dir==='asc'?'selected':''}>↑ Low first</option>
+      </select>
+    </div>
+
+    <div class="div"></div>
+    <button class="btn-reset" onclick="_anlResetFilters()">↺ Reset filters</button>
+    ` : ''}
+  `;
+}
+
+function _anlSetMinFunds(v) {
+  _anlMinFunds = parseInt(v) || 0;
+  _renderAnlTable();
+}
+function _anlSortFromSb(col) {
+  _anlSort.col = col;
+  _renderAnlTable();
+  _renderAnlSidebar();
+}
+function _anlDirFromSb(dir) {
+  _anlSort.dir = dir;
+  _renderAnlTable();
+}
+function _anlResetFilters() {
+  _anlQ=''; _anlMinFunds=0; _anlSectors=new Set(); _anlSort={col:'fundCount',dir:'desc'};
+  _renderAnlView();
+  _renderAnlSidebar();
+}
+
+// ── Fund Finder ──────────────────────────────────────────────────────────────
+let _finderEquities = [], _finderBonds = [], _finderResults = null, _finderLoading = false;
+let _finderSort = {col:'finderScore', dir:'desc'};
+let _finderAcTimer = null, _finderDdListener = null;
+
+function _renderFinderTab() {
+  const wrap = document.getElementById('anlTableWrap');
+  if(!wrap) return;
+
+  const eqChips = _finderEquities.map((nm,i) =>
+    `<span class="fchip">${xe(nm)}<button onclick="_finderRemove('equity',${i})">×</button></span>`
+  ).join('');
+  const bdChips = _finderBonds.map((nm,i) =>
+    `<span class="fchip" style="background:var(--blb);color:var(--bl);border-color:#BFDBFE">${xe(nm)}<button onclick="_finderRemove('bond',${i})" style="color:var(--bl)">×</button></span>`
+  ).join('');
+
+  const total = _finderEquities.length + _finderBonds.length;
+
+  wrap.innerHTML = `
+    <div class="finder-panel">
+      <h3>🎯 Find Mutual Funds by Holdings</h3>
+      <p style="font-size:.78rem;color:var(--mu);margin-bottom:14px">Search and add equities or bonds you want exposure to. We'll find which mutual funds hold them and rank by coverage + quality.</p>
+      <div class="finder-row">
+        <div class="finder-input-wrap">
+          <div class="fl-label">📈 Add Equity</div>
+          <input type="text" id="finderEqInput" class="fi" placeholder="Type equity name…" autocomplete="off"
+            oninput="_finderAc(this.value,'equity')" onfocus="_finderAc(this.value,'equity')">
+          <div class="finder-dd" id="finderEqDd"></div>
+        </div>
+        <div class="finder-input-wrap">
+          <div class="fl-label">🏛 Add Bond</div>
+          <input type="text" id="finderBdInput" class="fi" placeholder="Type bond name…" autocomplete="off"
+            oninput="_finderAc(this.value,'bond')" onfocus="_finderAc(this.value,'bond')">
+          <div class="finder-dd" id="finderBdDd"></div>
+        </div>
+      </div>
+      <div class="finder-chips">
+        ${eqChips||bdChips ? eqChips+bdChips : '<span style="font-size:.75rem;color:var(--sub)">No securities added yet — search above to add</span>'}
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button class="btn btn-pri" id="finderBtn" ${total&&!_finderLoading?'':'disabled'} onclick="_finderSearch()">
+          ${_finderLoading?'<span class="ico-spin">⟳</span> Searching…':'🎯 Find Matching Funds'}
+        </button>
+        ${total?`<button class="btn btn-ghost" onclick="_finderClear()">✕ Clear all</button>`:''}
+        ${total?`<span style="font-size:.75rem;color:var(--mu)">${total} securit${total!==1?'ies':'y'} selected</span>`:''}
+      </div>
+    </div>
+    <div id="finderResults">${_renderFinderResults()}</div>`;
+
+  // Replace document-level click listener to close dropdowns
+  if(_finderDdListener) document.removeEventListener('click', _finderDdListener, true);
+  _finderDdListener = e => {
+    ['finderEqDd','finderBdDd'].forEach(id => {
+      const dd = document.getElementById(id);
+      const inp = document.getElementById(id==='finderEqDd'?'finderEqInput':'finderBdInput');
+      if(dd && !dd.contains(e.target) && e.target !== inp) dd.style.display='none';
+    });
+  };
+  document.addEventListener('click', _finderDdListener, true);
+}
+
+async function _finderAc(q, type) {
+  clearTimeout(_finderAcTimer);
+  const ddId = type==='equity' ? 'finderEqDd' : 'finderBdDd';
+  const dd = document.getElementById(ddId);
+  if(!dd) return;
+  if(!q || q.length < 2) { dd.style.display='none'; return; }
+  _finderAcTimer = setTimeout(async () => {
+    const data = await api(`/api/analytics/securities?q=${encodeURIComponent(q)}&type=${encodeURIComponent(type)}`);
+    if(!data || !data.length) { dd.style.display='none'; return; }
+    const existing = type==='equity' ? _finderEquities : _finderBonds;
+    dd.innerHTML = data.map(item => {
+      const already = existing.includes(item.name);
+      return `<div class="finder-dd-item${already?' disabled':''}"
+        data-name="${xe(item.name)}" data-type="${type}"
+        onclick="_finderAddFromDd(this)">
+        <span style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:280px">${xe(item.name)}</span>
+        <span style="font-size:.68rem;color:var(--mu);white-space:nowrap;flex-shrink:0">${item.fundCount} fund${item.fundCount!==1?'s':''}</span>
+      </div>`;
+    }).join('');
+    dd.style.display='block';
+  }, 200);
+}
+
+function _finderAddFromDd(el) {
+  const name = el.dataset.name;
+  const type = el.dataset.type;
+  if(type==='equity' && !_finderEquities.includes(name)) _finderEquities.push(name);
+  if(type==='bond'   && !_finderBonds.includes(name))    _finderBonds.push(name);
+  const inp = document.getElementById(type==='equity'?'finderEqInput':'finderBdInput');
+  if(inp) inp.value='';
+  _renderFinderTab();
+}
+
+function _finderRemove(type, i) {
+  if(type==='equity') _finderEquities.splice(i,1);
+  else                _finderBonds.splice(i,1);
+  _renderFinderTab();
+}
+
+function _finderClear() {
+  _finderEquities=[]; _finderBonds=[]; _finderResults=null;
+  _renderFinderTab();
+}
+
+async function _finderSearch() {
+  if(!_finderEquities.length && !_finderBonds.length) return;
+  _finderLoading=true; _renderFinderTab();
+  const raw = await api('/api/find-funds', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({equities:_finderEquities, bonds:_finderBonds})
+  });
+  _finderLoading=false;
+  if (raw && Array.isArray(raw)) {
+    // Normalize analytics.js format → UI format
+    const totalReq = _finderEquities.length + _finderBonds.length;
+    const funds = raw.map(f => ({
+      ...f,
+      coveragePct: f.coverage ?? Math.round((((f.matchedEquities||[]).length + (f.matchedBonds||[]).length) / Math.max(totalReq,1)) * 100),
+      matchedCount: (f.matchedEquities||[]).length + (f.matchedBonds||[]).length,
+      totalRequested: totalReq,
+      totalMatchedWeight: null,
+      // wrap string arrays into {name, weight:null} objects for render
+      matchedEquities: (f.matchedEquities||[]).map(nm => typeof nm === 'string' ? {name:nm, weight:null} : nm),
+      matchedBonds:    (f.matchedBonds||[]).map(nm    => typeof nm === 'string' ? {name:nm, weight:null} : nm),
+    }));
+    _finderResults = {
+      funds,
+      totalMatched: funds.length,
+      equitiesFound: _finderEquities.length,
+      bondsFound: _finderBonds.length,
+    };
+  } else {
+    _finderResults = raw;
+  }
+  _renderFinderTab();
+}
+
+function _finderSortBy(col) {
+  if(_finderSort.col===col) _finderSort.dir=_finderSort.dir==='desc'?'asc':'desc';
+  else { _finderSort.col=col; _finderSort.dir='desc'; }
+  const el=document.getElementById('finderResults');
+  if(el) el.innerHTML=_renderFinderResults();
+}
+
+function _finderSortFunds(funds) {
+  const {col,dir}=_finderSort;
+  return [...funds].sort((a,b)=>{
+    const av=a[col]??0, bv=b[col]??0;
+    if(typeof av==='number'&&typeof bv==='number') return dir==='desc'?bv-av:av-bv;
+    return dir==='desc'?String(bv).localeCompare(String(av)):String(av).localeCompare(String(bv));
+  });
+}
+
+function _finderSa(col) {
+  if(_finderSort.col!==col) return '<span style="opacity:.3;margin-left:2px">↕</span>';
+  return `<span style="color:var(--a);margin-left:2px">${_finderSort.dir==='desc'?'↓':'↑'}</span>`;
+}
+
+function _renderFinderResults() {
+  const d=_finderResults;
+  if(!d) return '';
+  if(d.error) return `<div class="no-data-msg"><div class="emo">⚠️</div><p>${xe(d.error)}</p></div>`;
+  if(!d.funds||d.funds.length===0) return `
+    <div class="no-data-msg">
+      <div class="emo">🔍</div>
+      <p style="font-weight:600">No funds found holding these securities.</p>
+      <p style="font-size:.8rem;margin-top:6px;color:var(--sub)">Try different securities or wait for the bulk fetch to complete (more funds = better results).</p>
+    </div>`;
+
+  const sorted=_finderSortFunds(d.funds);
+  const rows=sorted.map((f,i)=>{
+    const cvPct=f.coveragePct??0;
+    const cvColor=cvPct>=80?'var(--g)':cvPct>=50?'var(--am)':'var(--a)';
+    const heldEq=(f.matchedEquities||[]).map(h=>
+      `<span class="held-chip" title="${xe(h.name)} · ${h.weight}%">${xe(trunc(h.name,22))}</span>`
+    ).join('');
+    const heldBd=(f.matchedBonds||[]).map(h=>
+      `<span class="held-chip bond" title="${xe(h.name)} · ${h.weight}%">${xe(trunc(h.name,22))}</span>`
+    ).join('');
+    return `<tr class="clickable-row" onclick="openDrawer('${xe(f.secId)}')">
+      <td style="color:var(--sub);font-weight:700;font-size:.72rem">${i+1}</td>
+      <td style="max-width:200px">
+        <div style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${xe(f.name)}">${xe(trunc(f.name,36))}</div>
+        <div style="font-size:.68rem;color:var(--sub)">${xe(f.amc)}</div>
+      </td>
+      <td><span class="tag tc" style="font-size:.65rem">${xe(trunc(f.category,18))}</span></td>
+      <td><span class="stars-s">${stars(f.stars)}</span></td>
+      <td><span style="font-weight:700;color:${sc(f.score)}">${f.score??'—'}</span></td>
+      <td><span style="font-weight:800;font-size:.88rem;color:${cvColor}">${(f.finderScore*100).toFixed(1)}</span></td>
+      <td><span style="font-weight:700;color:${cvColor}">${f.matchedCount} / ${f.totalRequested}</span></td>
+      <td>
+        <div style="display:flex;align-items:center;gap:5px">
+          <div class="cv-track"><div class="cv-fill" style="width:${cvPct}%;background:${cvColor}"></div></div>
+          <span style="font-size:.7rem;font-weight:700;color:${cvColor};min-width:36px">${cvPct}%</span>
+        </div>
+        ${f.totalMatchedWeight?`<div style="font-size:.62rem;color:var(--sub);margin-top:1px">${f.totalMatchedWeight}% wt</div>`:''}
+      </td>
+      <td><div class="held-chips">${heldEq}${heldBd}</div></td>
+    </tr>`;
+  }).join('');
+
+  return `
+    <div class="finder-stat-row">
+      <div class="finder-stat"><div class="lbl">Funds Matched</div><div class="val" style="color:var(--g)">${d.totalMatched.toLocaleString()}</div></div>
+      <div class="finder-stat"><div class="lbl">Equities Requested</div><div class="val">${d.equitiesFound}</div></div>
+      <div class="finder-stat"><div class="lbl">Bonds Requested</div><div class="val">${d.bondsFound}</div></div>
+      <div class="finder-stat"><div class="lbl">Showing Top</div><div class="val">${d.funds.length}</div></div>
+    </div>
+    <div class="anl-tbl-wrap"><table class="anl-tbl">
+      <thead><tr>
+        <th style="width:32px">#</th>
+        <th onclick="_finderSortBy('name')" style="min-width:180px">Fund ${_finderSa('name')}</th>
+        <th style="min-width:120px">Category</th>
+        <th onclick="_finderSortBy('stars')" style="min-width:80px">Stars ${_finderSa('stars')}</th>
+        <th onclick="_finderSortBy('score')" style="min-width:65px">Score ${_finderSa('score')}</th>
+        <th onclick="_finderSortBy('finderScore')" style="min-width:80px">Match Score ${_finderSa('finderScore')}</th>
+        <th onclick="_finderSortBy('matchedCount')" style="min-width:80px">Matched ${_finderSa('matchedCount')}</th>
+        <th onclick="_finderSortBy('coveragePct')" style="min-width:110px">Coverage ${_finderSa('coveragePct')}</th>
+        <th style="min-width:200px">Securities Held</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+}
+
+function _renderAnlTable() {
+  const wrap = document.getElementById('anlTableWrap');
+  if(!wrap || !_anlData) return;
+  const d = _anlData;
+  const q = _anlQ.toLowerCase();
+
+  if(_anlTab === 'sectors') {
+    const secs = d.sectors || [];
+    const maxCnt = Math.max(...secs.map(s=>s.fundCount), 1);
+    wrap.innerHTML = `<div class="anl-tbl-wrap">
+      <table class="anl-tbl"><thead><tr>
+        <th onclick="_anlSortBy('name')" style="min-width:160px">Sector ${_anlSa('name')}</th>
+        <th onclick="_anlSortBy('fundCount')" style="min-width:80px">Occurrences ${_anlSa('fundCount')}</th>
+        <th style="min-width:180px">Distribution</th>
+        <th onclick="_anlSortBy('totalWeight')" style="min-width:80px">Total Wt% ${_anlSa('totalWeight')}</th>
+        <th onclick="_anlSortBy('avgWeight')" style="min-width:80px">Avg Wt% ${_anlSa('avgWeight')}</th>
+      </tr></thead><tbody>` +
+      _sortList(secs).map(s => `<tr>
+        <td style="font-weight:700">${xe(s.name)}</td>
+        <td><span class="anl-badge">${s.fundCount}</span></td>
+        <td><div style="display:flex;align-items:center;gap:6px">
+          <div style="flex:1;height:7px;background:#eee;border-radius:4px;overflow:hidden;min-width:100px">
+            <div style="width:${(s.fundCount/maxCnt*100).toFixed(0)}%;height:100%;background:var(--a);border-radius:4px"></div>
+          </div>
+        </div></td>
+        <td style="font-weight:600">${s.totalWeight.toFixed(1)}%</td>
+        <td style="color:var(--mu)">${s.avgWeight.toFixed(2)}%</td>
+      </tr>`).join('') +
+      `</tbody></table></div>`;
+    return;
+  }
+
+  const raw = (_anlTab === 'equity' ? d.equities : d.bonds) || [];
+  let list = q ? raw.filter(e =>
+    e.name.toLowerCase().includes(q) ||
+    (e.ticker||'').toLowerCase().includes(q) ||
+    (e.sector||'').toLowerCase().includes(q) ||
+    (e.moat||'').toLowerCase().includes(q) ||
+    (e.creditRating||'').toLowerCase().includes(q)
+  ) : raw;
+  if(_anlSectors.size > 0) list = list.filter(e => _anlSectors.has(e.sector||''));
+  if(_anlMinFunds > 0) list = list.filter(e => e.fundCount >= _anlMinFunds);
+  const sorted = _sortList(list);
+
+  const countEl = document.getElementById('anlCountLbl');
+  if(countEl) countEl.textContent = `${sorted.length.toLocaleString()} of ${raw.length.toLocaleString()}`;
+
+  const isEq = _anlTab === 'equity';
+  const maxFc = Math.max(...sorted.slice(0,100).map(e=>e.fundCount), 1);
+
+  wrap.innerHTML = `<div class="anl-tbl-wrap"><table class="anl-tbl"><thead><tr>
+    <th style="width:32px">#</th>
+    <th onclick="_anlSortBy('name')" style="min-width:180px">Security ${_anlSa('name')}</th>
+    <th onclick="_anlSortBy('ticker')" style="min-width:70px">Ticker ${_anlSa('ticker')}</th>
+    ${isEq ? `<th onclick="_anlSortBy('sector')" style="min-width:120px">Sector ${_anlSa('sector')}</th>` : `<th onclick="_anlSortBy('creditRating')">Rating ${_anlSa('creditRating')}</th>`}
+    <th onclick="_anlSortBy('fundCount')" style="min-width:100px">Funds Holding ${_anlSa('fundCount')}</th>
+    <th style="min-width:150px">Popularity</th>
+    <th onclick="_anlSortBy('avgWeight')" style="min-width:80px">Avg Wt% ${_anlSa('avgWeight')}</th>
+  </tr></thead><tbody>` +
+  sorted.map((e,i) => {
+    const moatCls = (e.moat||'').toLowerCase()==='wide'?'wide':(e.moat||'').toLowerCase()==='narrow'?'narrow':'none';
+    const barW = Math.round(e.fundCount/maxFc*100);
+    const dots = Math.min(e.fundCount, 20);
+    return `<tr class="clickable-row" data-ename="${xe(e.name)}" data-etype="${_anlTab==='bonds'?'bond':'equity'}" onclick="openEntityDetail(this.dataset.ename,this.dataset.etype)" title="Click to see all funds holding this entity">
+      <td style="color:var(--sub);font-weight:700;font-size:.72rem">${i+1}</td>
+      <td style="max-width:200px">
+        <div style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${xe(e.name)}">${xe(e.name)}</div>
+      </td>
+      <td><span style="font-size:.7rem;font-weight:700;color:var(--bl)">${xe(e.ticker||'—')}</span></td>
+      <td>${isEq
+        ? `<span class="sector-tag" style="font-size:.65rem">${xe(e.sector||'—')}</span>`
+        : `<span style="font-size:.7rem;font-weight:700;color:var(--g)">${xe(e.creditRating||'—')}</span>`}</td>
+      <td>
+        <span style="font-size:.9rem;font-weight:700;color:${e.fundCount>=10?'var(--g)':e.fundCount>=5?'var(--am)':'var(--ink)'}">${e.fundCount}</span>
+        <span style="font-size:.65rem;color:var(--sub)"> fund${e.fundCount!==1?'s':''}</span>
+      </td>
+      <td>
+        <div style="display:flex;align-items:center;gap:4px">
+          <div style="flex:1;height:5px;background:#eee;border-radius:3px;overflow:hidden;min-width:80px">
+            <div style="width:${barW}%;height:100%;background:${e.fundCount>=10?'var(--g)':e.fundCount>=5?'var(--am)':'var(--a)'};border-radius:3px"></div>
+          </div>
+        </div>
+      </td>
+      <td style="font-weight:600">${e.avgWeight.toFixed(2)}%</td>
+    </tr>`;
+  }).join('') +
+  `</tbody></table></div>`;
+}
+
+function _anlSa(col) {
+  if(_anlSort.col !== col) return '<span style="opacity:.3;margin-left:2px">↕</span>';
+  return `<span style="color:var(--a);margin-left:2px">${_anlSort.dir==='desc'?'↓':'↑'}</span>`;
+}
+
+function _sortList(list) {
+  const {col,dir} = _anlSort;
+  return [...list].sort((a,b) => {
+    const av = a[col] ?? '', bv = b[col] ?? '';
+    if(typeof av === 'number' && typeof bv === 'number') return dir==='desc'?bv-av:av-bv;
+    return dir==='desc'?String(bv).localeCompare(String(av)):String(av).localeCompare(String(bv));
+  });
+}
+
+// ── Entity Detail Modal ──
+function closeEntityDetail() {
+  document.getElementById('edmOv').classList.remove('open');
+  document.getElementById('edm').classList.remove('open');
+}
+
+async function openEntityDetail(name, type) {
+  const ov = document.getElementById('edmOv');
+  const modal = document.getElementById('edm');
+  const title = document.getElementById('edmTitle');
+  const metaEl = document.getElementById('edmMeta');
+  const body = document.getElementById('edmBody');
+
+  title.textContent = name;
+  metaEl.innerHTML = `<span>${type === 'bond' ? '🏛 Bond' : '📈 Equity'}</span>`;
+  body.innerHTML = '<div class="loader"><div class="spinner"></div> Fetching funds holding this entity…</div>';
+  ov.classList.add('open');
+  modal.classList.add('open');
+
+  const d = await api(`/api/analytics/entity?name=${encodeURIComponent(name)}&type=${encodeURIComponent(type)}`);
+  if (!d) { body.innerHTML = '<div class="empty"><div class="emo">⚠️</div>Failed to load</div>'; return; }
+
+  metaEl.innerHTML = `<span>${type === 'bond' ? '🏛 Bond' : '📈 Equity'}</span> <span><b>${d.totalFunds}</b> fund${d.totalFunds !== 1 ? 's' : ''} hold this</span>`;
+
+  if (!d.funds || d.funds.length === 0) {
+    body.innerHTML = '<div class="empty"><div class="emo">🔍</div>No fund data found yet — analytics may still be fetching.</div>';
+    return;
+  }
+
+  const now = new Date();
+  function sinceLabel(dateStr) {
+    if (!dateStr) return { label: '—', cls: '' };
+    const dt = new Date(dateStr);
+    if (isNaN(dt)) return { label: dateStr, cls: '' };
+    const yrs = (now - dt) / (1000 * 60 * 60 * 24 * 365.25);
+    if (yrs >= 3) return { label: `${yrs.toFixed(1)}y`, cls: 'long' };
+    if (yrs >= 1) return { label: `${yrs.toFixed(1)}y`, cls: 'med' };
+    const mos = Math.round(yrs * 12);
+    return { label: `${mos}mo`, cls: 'new' };
+  }
+
+  function starsHtml(n) {
+    if (!n) return '<span style="color:var(--sub)">—</span>';
+    return `<span class="edm-stars">${'★'.repeat(n)}${'☆'.repeat(5-n)}</span>`;
+  }
+
+  const rows = d.funds.map((f, i) => {
+    const since = sinceLabel(f.firstBoughtDate);
+    const sinceDisplay = since.label !== '—'
+      ? `<span class="since-badge ${since.cls}">${since.label}</span>`
+      : '—';
+    const wt = f.weight != null ? `<b>${f.weight.toFixed(2)}%</b>` : '—';
+    const chg = f.shareChange != null
+      ? `<span class="${f.shareChange > 0 ? 'rp' : f.shareChange < 0 ? 'rn' : 'rz'}">${f.shareChange > 0 ? '+' : ''}${Number(f.shareChange).toLocaleString('en-IN')}</span>`
+      : '—';
+    const score = f.score != null ? `<span style="font-weight:700;font-size:.8rem">${f.score}</span>` : '—';
+    return `<tr>
+      <td style="color:var(--sub);font-size:.72rem;font-weight:700">${i+1}</td>
+      <td style="max-width:220px">
+        <div style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${xe(f.fundName)}">${xe(trunc(f.fundName, 40))}</div>
+        <div style="font-size:.68rem;color:var(--sub)">${xe(f.amc||'')}</div>
+      </td>
+      <td><span class="tag tc" style="font-size:.65rem">${xe(trunc(f.category||'—',18))}</span></td>
+      <td>${starsHtml(f.stars)}</td>
+      <td>${score}</td>
+      <td style="font-weight:600">${wt}</td>
+      <td>${sinceDisplay}</td>
+      <td style="font-size:.72rem">${f.firstBoughtDate ? xe(f.firstBoughtDate) : '—'}</td>
+      <td>${chg}</td>
+    </tr>`;
+  }).join('');
+
+  body.innerHTML = `
+    <div style="margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span class="anl-badge">${d.totalFunds} funds</span>
+      <span style="font-size:.72rem;color:var(--sub)">Sorted by first bought date (oldest first = longest held)</span>
+    </div>
+    <div class="edm-tbl-wrap">
+      <table class="edm-tbl">
+        <thead><tr>
+          <th style="width:32px">#</th>
+          <th onclick="_edmSort(this,'fundName')" style="min-width:200px">Fund Name ↕</th>
+          <th style="min-width:130px">Category</th>
+          <th onclick="_edmSort(this,'stars')" style="min-width:80px">Stars ↕</th>
+          <th onclick="_edmSort(this,'score')" style="min-width:70px">Score ↕</th>
+          <th onclick="_edmSort(this,'weight')" style="min-width:70px">Weight% ↕</th>
+          <th onclick="_edmSort(this,'firstBoughtDate')" style="min-width:70px">Held For ↕</th>
+          <th style="min-width:100px">First Bought</th>
+          <th onclick="_edmSort(this,'shareChange')" style="min-width:90px">Δ Shares ↕</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+
+  // Store for re-sort
+  window._edmFunds = d.funds;
+  window._edmName = name;
+  window._edmType = type;
+}
+
+let _edmSortState = {col:'firstBoughtDate', dir:'asc'};
+function _edmSort(th, col) {
+  if (_edmSortState.col === col) _edmSortState.dir = _edmSortState.dir === 'asc' ? 'desc' : 'asc';
+  else { _edmSortState.col = col; _edmSortState.dir = 'asc'; }
+  // Re-render with sorted data
+  const sorted = [...window._edmFunds].sort((a,b) => {
+    const av = a[col] ?? '', bv = b[col] ?? '';
+    const dir = _edmSortState.dir;
+    if (typeof av === 'number' && typeof bv === 'number') return dir === 'asc' ? av-bv : bv-av;
+    return dir === 'asc' ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
+  });
+  // Re-open with sorted result (patch funds array temporarily)
+  const orig = window._edmFunds;
+  window._edmFunds = sorted;
+  // Re-render just tbody
+  const now = new Date();
+  function sinceLabel(dateStr) {
+    if (!dateStr) return { label: '—', cls: '' };
+    const dt = new Date(dateStr);
+    if (isNaN(dt)) return { label: dateStr, cls: '' };
+    const yrs = (now - dt) / (1000 * 60 * 60 * 24 * 365.25);
+    if (yrs >= 3) return { label: `${yrs.toFixed(1)}y`, cls: 'long' };
+    if (yrs >= 1) return { label: `${yrs.toFixed(1)}y`, cls: 'med' };
+    const mos = Math.round(yrs * 12);
+    return { label: `${mos}mo`, cls: 'new' };
+  }
+  const tbody = document.querySelector('#edmBody .edm-tbl tbody');
+  if (!tbody) return;
+  tbody.innerHTML = sorted.map((f, i) => {
+    const since = sinceLabel(f.firstBoughtDate);
+    const sinceDisplay = since.label !== '—' ? `<span class="since-badge ${since.cls}">${since.label}</span>` : '—';
+    const wt = f.weight != null ? `<b>${f.weight.toFixed(2)}%</b>` : '—';
+    const chg = f.shareChange != null
+      ? `<span class="${f.shareChange > 0 ? 'rp' : f.shareChange < 0 ? 'rn' : 'rz'}">${f.shareChange > 0 ? '+' : ''}${Number(f.shareChange).toLocaleString('en-IN')}</span>`
+      : '—';
+    const score = f.score != null ? `<span style="font-weight:700;font-size:.8rem">${f.score}</span>` : '—';
+    const starsHtml = f.stars ? `<span class="edm-stars">${'★'.repeat(f.stars)}${'☆'.repeat(5-f.stars)}</span>` : '<span style="color:var(--sub)">—</span>';
+    return `<tr>
+      <td style="color:var(--sub);font-size:.72rem;font-weight:700">${i+1}</td>
+      <td style="max-width:220px"><div style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${xe(f.fundName)}">${xe(trunc(f.fundName,40))}</div><div style="font-size:.68rem;color:var(--sub)">${xe(f.amc||'')}</div></td>
+      <td><span class="tag tc" style="font-size:.65rem">${xe(trunc(f.category||'—',18))}</span></td>
+      <td>${starsHtml}</td>
+      <td>${score}</td>
+      <td style="font-weight:600">${wt}</td>
+      <td>${sinceDisplay}</td>
+      <td style="font-size:.72rem">${f.firstBoughtDate ? xe(f.firstBoughtDate) : '—'}</td>
+      <td>${chg}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Analysis ──
+async function renderAnalysis() {
+  const d = await api('/api/funds?sort=score&dir=desc&page=1&page_size=500');
+  if(!d) return;
+  const funds = d.funds;
+
+  // Category stats
+  const catMap={};
+  funds.forEach(f=>{
+    if(!catMap[f.category]) catMap[f.category]={scores:[],ret3ys:[],cnt:0};
+    catMap[f.category].scores.push(f.score);
+    if(f.ret3y!=null) catMap[f.category].ret3ys.push(f.ret3y);
+    catMap[f.category].cnt++;
+  });
+  const cats = Object.entries(catMap).map(([k,v])=>({
+    name:k, avgScore:avg(v.scores), avgRet3y:avg(v.ret3ys), count:v.cnt
+  })).sort((a,b)=>b.avgScore-a.avgScore);
+
+  // AMC stats
+  const amcMap={};
+  funds.forEach(f=>{
+    if(!amcMap[f.amc]) amcMap[f.amc]={scores:[],five:0,cnt:0};
+    amcMap[f.amc].scores.push(f.score);
+    if(f.stars===5) amcMap[f.amc].five++;
+    amcMap[f.amc].cnt++;
+  });
+  const amcs = Object.entries(amcMap).map(([k,v])=>({
+    name:k, avgScore:avg(v.scores), fiveStars:v.five, count:v.cnt
+  })).sort((a,b)=>b.avgScore-a.avgScore).slice(0,15);
+
+  const maxCat = Math.max(...cats.map(x=>x.avgScore),1);
+  const maxAmc = Math.max(...amcs.map(x=>x.avgScore),1);
+
+  // Star distribution
+  const starDist=[1,2,3,4,5].map(s=>({s,cnt:funds.filter(f=>f.stars===s).length}));
+  const unrated=funds.filter(f=>f.stars===0).length;
+
+  document.getElementById('anContent').innerHTML = `
+    <div class="an-grid" style="grid-template-columns:1fr 1fr 1fr">
+      <div class="an-card" style="grid-column:1/-1">
+        <h3>Category Performance (avg composite score)</h3>
+        <div class="bar-list">
+          ${cats.slice(0,18).map(c=>`
+            <div class="bar-item">
+              <div class="bar-name" title="${xe(c.name)}">${xe(trunc(c.name,24))}</div>
+              <div class="bar-track"><div class="bar-fill" style="width:${(c.avgScore/maxCat*100).toFixed(0)}%;background:${sc(c.avgScore*1.6)}"></div></div>
+              <div class="bar-val">${c.avgScore.toFixed(1)}</div>
+              <div style="font-size:.65rem;color:var(--sub);min-width:55px">${c.avgRet3y?`3Y:${c.avgRet3y.toFixed(1)}%`:''}</div>
+              <div style="font-size:.65rem;color:var(--sub);min-width:40px">${c.count} funds</div>
+            </div>`).join('')}
+        </div>
+      </div>
+
+      <div class="an-card">
+        <h3>Top AMCs by Score</h3>
+        <div class="bar-list">
+          ${amcs.map(a=>`
+            <div class="bar-item">
+              <div class="bar-name" title="${xe(a.name)}">${xe(trunc(a.name,20))}</div>
+              <div class="bar-track"><div class="bar-fill" style="width:${(a.avgScore/maxAmc*100).toFixed(0)}%;background:var(--a)"></div></div>
+              <div class="bar-val">${a.avgScore.toFixed(1)}</div>
+              <div style="font-size:.65rem;color:#F59E0B;min-width:28px">★${a.fiveStars}</div>
+            </div>`).join('')}
+        </div>
+      </div>
+
+      <div class="an-card" style="grid-column:span 2">
+        <h3>Star Rating Distribution</h3>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px">
+          ${starDist.reverse().map(x=>`<div style="text-align:center">
+            <div style="font-size:1.5rem;font-weight:700;color:${sc(x.s*18)}">${x.cnt}</div>
+            <div class="stars-s" style="font-size:.85rem">${'★'.repeat(x.s)}<span class="e">${'★'.repeat(5-x.s)}</span></div>
+          </div>`).join('')}
+          <div style="text-align:center"><div style="font-size:1.5rem;font-weight:700;color:var(--sub)">${unrated}</div><div style="font-size:.75rem;color:var(--sub)">Unrated</div></div>
+        </div>
+        <canvas id="starChart" style="max-height:120px"></canvas>
+      </div>
+    </div>
+
+    <div class="an-card" style="margin-bottom:20px">
+      <h3>Best Funds per Category (4–5★)</h3>
+      <div style="overflow-x:auto">
+        <table class="ft" style="font-size:.77rem">
+          <thead><tr><th>Category</th><th>Fund</th><th>Score</th><th>Stars</th><th>3Y</th><th>5Y</th><th>Exp%</th><th>AUM Cr</th></tr></thead>
+          <tbody>${renderBestByCat(funds)}</tbody>
+        </table>
+      </div>
+    </div>`;
+
+  // Star chart
+  setTimeout(()=>{
+    const ctx=document.getElementById('starChart');
+    if(!ctx) return;
+    new Chart(ctx,{
+      type:'bar',
+      data:{labels:['★','★★','★★★','★★★★','★★★★★'],
+            datasets:[{data:starDist.reverse().map(x=>x.cnt),backgroundColor:['#EF4444','#F97316','#EAB308','#84CC16','#22C55E'],borderRadius:6}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+               scales:{y:{ticks:{font:{size:10}}},x:{ticks:{font:{size:12}}}}}
+    });
+  },50);
+}
+
+function renderBestByCat(funds) {
+  const map={};
+  funds.filter(f=>f.stars>=4).forEach(f=>{
+    if(!map[f.category]) map[f.category]=[];
+    if(map[f.category].length<3) map[f.category].push(f);
+  });
+  let html='';
+  Object.entries(map).sort((a,b)=>b[1][0].score-a[1][0].score).slice(0,20).forEach(([cat,fs])=>{
+    fs.forEach((f,i)=>{
+      html+=`<tr onclick="openDrawer('${xe(f.secId)}')" style="cursor:pointer">
+        ${i===0?`<td rowspan="${fs.length}" style="vertical-align:top;font-weight:600;font-size:.72rem;border-right:1px solid var(--b)">${xe(cat)}</td>`:''}
+        <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${xe(f.name)}">${xe(f.name)}</td>
+        <td><span style="font-weight:700;color:${sc(f.score)}">${f.score.toFixed(1)}</span></td>
+        <td><span class="stars-s">${stars(f.stars)}</span></td>
+        <td class="${rc(f.ret3y)}">${pct(f.ret3y)}</td>
+        <td class="${rc(f.ret5y)}">${pct(f.ret5y)}</td>
+        <td>${f.expense!=null?f.expense.toFixed(2)+'%':'—'}</td>
+        <td class="aum-v">${f.aum!=null?'₹'+nfmt(f.aum):'—'}</td>
+      </tr>`;
+    });
+  });
+  return html||`<tr><td colspan="8" class="empty" style="padding:20px">No 4-5★ funds in filtered set</td></tr>`;
+}
+
+// ── Refresh — static version uses /api/funds/refresh ──
+async function refreshData() {
+  const btn = document.getElementById('btnRefresh');
+  btn.innerHTML = '<span class="ico-spin">↻</span> Refreshing…'; btn.disabled = true;
+  // First ensure proxy is configured
+  const cfg = await api('/api/config/proxy');
+  if (!cfg?.proxy) {
+    btn.innerHTML = '↻ Refresh'; btn.disabled = false;
+    toast('Configure proxy URL in ⚙ Setup first');
+    openSetup(); return;
+  }
+  const r = await api('/api/funds/refresh', { method: 'POST' });
+  if (!r) { btn.innerHTML = '↻ Refresh'; btn.disabled = false; return; }
+  toast('Fetching fund list from Morningstar…');
+  const t = setInterval(async () => {
+    const s = await api('/api/funds/refresh-status');
+    if (!s?.running) {
+      clearInterval(t); btn.innerHTML = '↻ Refresh'; btn.disabled = false;
+      if (s?.error) toast('Error: ' + s.error);
+      else { toast(`Done — ${(s?.fetched||0).toLocaleString()} funds loaded`); _swMsg('INVALIDATE_FUNDS'); await loadMeta(); await applyFlt(); loadTypeCounts(); }
+    }
+  }, 2500);
+}
+
+// ── Helpers ──
+async function api(url,opts={}) {
+  try{
+    const r=await fetch(API+url,opts);
+    if(r.ok) return r.json();
+    const err=await r.json().catch(()=>null);
+    if(err?.error) toast('Server error: '+err.error);
+    return null;
+  }catch{return null;}
+}
+function pct(v){ return v==null?'—':(v>0?'+':'')+v.toFixed(1)+'%'; }
+function rc(v){ return v==null?'rz':v>0?'rp':v<0?'rn':'rz'; }
+function rc2(v){ return v==null?'rz':v>0?'rp':v<0?'rn':'rz'; }
+function sc(s){ return s>=50?'var(--g)':s>=35?'var(--am)':'var(--r)'; }
+function stars(n){ return n?`${'★'.repeat(n)}<span class="e">${'★'.repeat(5-n)}</span>`:'<span class="rz">—</span>'; }
+function starsStr(n){ return n?`<span class="stars-s">${stars(n)}</span>`:'—'; }
+function nfmt(n){ if(n>=10000) return (n/1000).toFixed(0)+'K'; if(n>=1000) return (n/1000).toFixed(1)+'K'; return n?.toFixed(0); }
+function trunc(s,n){ return s&&s.length>n?s.slice(0,n)+'…':(s||''); }
+function xe(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function avg(a){ return a.length?a.reduce((x,y)=>x+y,0)/a.length:0; }
+function riskLbl(r){ return r==null?'—':({1:'Low',2:'Below Avg',3:'Average',4:'Above Avg',5:'High'}[r]||r); }
+function toast(msg){ const el=document.getElementById('toast');el.textContent=msg;el.classList.add('on');setTimeout(()=>el.classList.remove('on'),4200); }
+
+init();
+</script>
+</body>
+</html>
