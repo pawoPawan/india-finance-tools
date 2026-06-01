@@ -12,7 +12,7 @@
  */
 
 'use strict';
-importScripts('./idb.js?v=11', './analytics.js?v=11', './fetcher.js?v=11');
+importScripts('./idb.js?v=12', './analytics.js?v=12', './fetcher.js?v=12');
 
 // ── In-memory caches (cleared on SW restart) ─────────────────────────────────
 let _fundsCache   = null;   // Array<fund>  — loaded from IDB
@@ -24,15 +24,19 @@ let _secIdxKey    = -1;     // IDB holding count when _secIdx was built
 
 // ── SW lifecycle ──────────────────────────────────────────────────────────────
 self.addEventListener('install',  () => self.skipWaiting());
-// Pre-warm the funds cache from IDB before claiming clients so the first
-// /api/funds or /api/meta request returns instantly after controllerchange fires.
+// Pre-warm caches from IDB so API calls return instantly after controllerchange:
+//  - funds (12MB)  → loaded BEFORE claim so /api/funds is instant on first render
+//  - analytics + secIndex (cursor-scanned) → loaded AFTER claim in background
+//    so Analytics tab is fast without delaying the splash screen
 self.addEventListener('activate', e  => e.waitUntil(
-  _prewarm().then(() => self.clients.claim())
+  _prewarmFunds().then(() => {
+    self.clients.claim();
+    _prewarmAnalytics();   // fire-and-forget after claim
+  })
 ));
 
-async function _prewarm() {
-  try { await _getFunds(); } catch (_) {}
-}
+async function _prewarmFunds()     { try { await _getFunds();    } catch (_) {} }
+async function _prewarmAnalytics() { try { await _getAnalytics(); await _getSecIndex(); } catch (_) {} }
 
 // ── Page → SW message channel ─────────────────────────────────────────────────
 self.addEventListener('message', e => {
