@@ -33,9 +33,9 @@ window._swReady = !('serviceWorker' in navigator) || !!navigator.serviceWorker.c
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-<script src="./idb.js?v=10"></script>
-<script src="./analytics.js?v=10"></script>
-<script src="./fetcher.js?v=10"></script>
+<script src="./idb.js?v=11"></script>
+<script src="./analytics.js?v=11"></script>
+<script src="./fetcher.js?v=11"></script>
 <style>
 :root{
   --c:#F7F5F0;--s:#fff;--b:#E8E4DC;--ink:#1C1917;--mu:#57534E;--sub:#78716C;
@@ -366,6 +366,7 @@ table.ft tr{cursor:pointer;transition:background .1s}
   </div>
   <div class="hdr-right">
     <span class="pill" id="totalPill">— funds</span>
+    <span id="fundAgePill" style="font-size:.68rem;color:var(--sub);display:none"></span>
     <button class="btn btn-sec" onclick="toggleView('analytics')" id="btnAnalytics">🔬 Analytics</button>
     <button class="btn btn-sec" onclick="toggleView('analysis')" id="btnAnalysis">📊 Analysis</button>
     <button class="btn btn-pri" id="btnRefresh" onclick="refreshData()">↻ Refresh</button>
@@ -849,9 +850,20 @@ async function _setupClearAll() {
 }
 
 async function loadMeta() {
-  const m = await api('/api/meta');
+  const [m, rs] = await Promise.all([
+    api('/api/meta'),
+    MFidb.getConfig('refresh_state').catch(() => null),
+  ]);
   if (!m) return;
   document.getElementById('totalPill').textContent = `${m.total.toLocaleString()} funds`;
+  // Show how old the cached fund list is so users know hard refresh uses local data
+  const agePill = document.getElementById('fundAgePill');
+  if (agePill && rs?.doneAt) {
+    const mins  = Math.round((Date.now() - rs.doneAt) / 60000);
+    const age   = mins < 60 ? `${mins}m ago` : mins < 1440 ? `${Math.floor(mins/60)}h ago` : `${Math.floor(mins/1440)}d ago`;
+    agePill.textContent = `cached ${age}`;
+    agePill.style.display = '';
+  }
   _allCats = m.categories;
   const cs = document.getElementById('fCat'), as = document.getElementById('fAMC');
   m.categories.forEach(c => { const o = new Option(c,c); cs.add(o); });

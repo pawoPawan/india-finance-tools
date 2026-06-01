@@ -12,7 +12,7 @@
  */
 
 'use strict';
-importScripts('./idb.js?v=10', './analytics.js?v=10', './fetcher.js?v=10');
+importScripts('./idb.js?v=11', './analytics.js?v=11', './fetcher.js?v=11');
 
 // ── In-memory caches (cleared on SW restart) ─────────────────────────────────
 let _fundsCache   = null;   // Array<fund>  — loaded from IDB
@@ -24,7 +24,15 @@ let _secIdxKey    = -1;     // IDB holding count when _secIdx was built
 
 // ── SW lifecycle ──────────────────────────────────────────────────────────────
 self.addEventListener('install',  () => self.skipWaiting());
-self.addEventListener('activate', e  => e.waitUntil(self.clients.claim()));
+// Pre-warm the funds cache from IDB before claiming clients so the first
+// /api/funds or /api/meta request returns instantly after controllerchange fires.
+self.addEventListener('activate', e  => e.waitUntil(
+  _prewarm().then(() => self.clients.claim())
+));
+
+async function _prewarm() {
+  try { await _getFunds(); } catch (_) {}
+}
 
 // ── Page → SW message channel ─────────────────────────────────────────────────
 self.addEventListener('message', e => {
