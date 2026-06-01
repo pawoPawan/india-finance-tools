@@ -12,7 +12,7 @@
  */
 
 'use strict';
-importScripts('./idb.js?v=4', './analytics.js?v=4', './fetcher.js?v=4');
+importScripts('./idb.js?v=5', './analytics.js?v=5', './fetcher.js?v=5');
 
 // ── In-memory caches (cleared on SW restart) ─────────────────────────────────
 let _fundsCache   = null;   // Array<fund>  — loaded from IDB

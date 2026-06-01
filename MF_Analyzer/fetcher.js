@@ -97,32 +97,27 @@ var MFfetcher = (function () {
   async function getSALHeaders(force = false) {
     if (!force && _salHeaders && Date.now() - _salTs < SAL_HDR_TTL) return _salHeaders;
 
-    // IDB cache
+    // IDB cache — use if fresh
     const cached = await MFidb.getConfig('sal_headers');
     if (!force && cached && cached.headers && (Date.now() - (cached.ts||0)) < SAL_HDR_TTL) {
       _salHeaders = cached.headers; _salTs = cached.ts || 0; return _salHeaders;
     }
 
-    // Try screener JWT as SAL bearer (often works for public data)
+    // Build headers directly from the screener JWT — no test call needed.
+    // If the token is stale the first real SAL request will 401 and retry with a fresh JWT.
     try {
-      const jwt  = await getJWT();
+      const jwt  = await getJWT(force);
       const hdrs = { ...BASE_HDRS, 'Authorization': `Bearer ${jwt}`, 'x-sal-clientid': 'RSIN_SAL' };
-      const testUrl = _salUrl(`portfolio/holding/v2/F00000Q30V/data`, { secId:'F00000Q30V' });
-      // Call SAL directly — apac-api.morningstar.com has CORS:* and allows browser IPs;
-      // routing through the Cloudflare proxy gets blocked by Morningstar's CloudFront WAF.
-      const r = await fetch(testUrl, { headers: hdrs });
-      if (r.ok || r.status === 404) {   // 404 = endpoint works, fund just not found
-        _salHeaders = hdrs; _salTs = Date.now();
-        await MFidb.setConfig('sal_headers', { headers: _salHeaders, ts: _salTs });
-        return _salHeaders;
-      }
+      _salHeaders = hdrs; _salTs = Date.now();
+      await MFidb.setConfig('sal_headers', { headers: _salHeaders, ts: _salTs });
+      return _salHeaders;
     } catch (_) {}
 
-    // Return whatever we have in cache even if stale
+    // Fall back to stale cache if JWT fetch failed
     if (cached && cached.headers) {
       _salHeaders = cached.headers; _salTs = cached.ts || 0; return _salHeaders;
     }
-    return null;  // caller must surface the manual-paste UI
+    return null;
   }
 
   /** Called when user pastes raw headers from DevTools. */
