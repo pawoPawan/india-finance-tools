@@ -24,9 +24,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-<script src="./idb.js?v=5"></script>
-<script src="./analytics.js?v=5"></script>
-<script src="./fetcher.js?v=5"></script>
+<script src="./idb.js?v=6"></script>
+<script src="./analytics.js?v=6"></script>
+<script src="./fetcher.js?v=6"></script>
 <style>
 :root{
   --c:#F7F5F0;--s:#fff;--b:#E8E4DC;--ink:#1C1917;--mu:#57534E;--sub:#78716C;
@@ -1193,6 +1193,7 @@ function renderHoldingTable(type) {
   const map = {equity:'equityHoldings', bonds:'bondHoldings', others:'otherHoldings'};
   if(!_holdData) return `<div class="loader"><div class="spinner"></div>Loading holdings…</div>`;
 
+  if(_holdData._salUnavailable) return `<div class="empty"><div class="emo">🔒</div><p style="max-width:320px;text-align:center">Holdings data requires Morningstar SAL API access.<br><span style="font-size:.78rem;color:var(--mu)">Fund overview &amp; performance are available above.</span></p></div>`;
   const list = (_holdData[map[type]]||[]).slice().sort((a,b)=>(b.weighting||0)-(a.weighting||0));
   if(!list.length) return `<div class="empty"><div class="emo">📭</div><p>No ${type} holdings data available for this fund.</p></div>`;
 
@@ -1314,6 +1315,7 @@ function renderTrendBars(vals) {
 
 // ── Allocation Tab ──
 function renderAllocation() {
+  if(_holdData?._salUnavailable) return `<div class="empty"><div class="emo">🔒</div><p>Holdings data requires Morningstar SAL API access.</p></div>`;
   const a = _holdData?.assetAllocation || {};
   const items = [
     {l:'Stock',       v:a.stock,       c:'#0F766E'},
@@ -1365,6 +1367,7 @@ function drawAllocChart() {
 
 // ── Sectors Tab ──
 function renderSectors() {
+  if(_holdData?._salUnavailable) return `<div class="empty"><div class="emo">🔒</div><p>Holdings data requires Morningstar SAL API access.</p></div>`;
   const eq = (_holdData?.equitySectors||[]).filter(s=>s.fund!=null);
   const fi = (_holdData?.fixedIncomeSectors||[]).filter(s=>s.fund!=null);
   if(!eq.length && !fi.length) return `<div class="empty"><div class="emo">🏢</div><p>Sector data not available.</p></div>`;

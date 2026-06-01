@@ -12,7 +12,7 @@
  */
 
 'use strict';
-importScripts('./idb.js?v=5', './analytics.js?v=5', './fetcher.js?v=5');
+importScripts('./idb.js?v=6', './analytics.js?v=6', './fetcher.js?v=6');
 
 // ── In-memory caches (cleared on SW restart) ─────────────────────────────────
 let _fundsCache   = null;   // Array<fund>  — loaded from IDB
@@ -203,8 +203,23 @@ async function handleAPI(req, url) {
       const { name } = await req.json().catch(() => ({}));
       const proxyUrl = (await MFidb.getConfig('proxy_url')) || '';
       MFfetcher.setProxy(proxyUrl);
-      const data = await MFfetcher.fetchFullHoldings(secId, name || secId);
-      if (!data) return apiErr('Holdings unavailable', 404);
+      let data = null;
+      try {
+        data = await MFfetcher.fetchFullHoldings(secId, name || secId);
+      } catch (_) {}
+      if (!data) {
+        // SAL API requires premium auth — return a stub with screener metadata so the
+        // overview/performance tabs still render from the already-loaded fund row.
+        const funds = await _getFunds();
+        const fund  = funds.find(f => f.secId === secId);
+        data = {
+          secId, _ts: Date.now() / 1000, _salUnavailable: true,
+          name:     name || fund?.name || secId,
+          category: fund?.categoryName || fund?.category || '',
+          amc:      fund?.BrandingCompanyName || fund?.amc || '',
+          equityHoldings: [], bondHoldings: [], otherHoldings: [],
+        };
+      }
       await MFidb.saveHolding(data);
       _anlCache = null;
       _secIdx   = null;
