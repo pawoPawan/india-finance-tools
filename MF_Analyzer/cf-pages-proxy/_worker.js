@@ -87,6 +87,10 @@ export default {
         fwdHeaders[k] = v;
       }
     }
+    // Browsers strip Origin/Referer on cross-origin fetch — inject them here
+    // so Morningstar accepts the request as coming from its own screener page
+    fwdHeaders['Origin']  = 'https://www.morningstar.in';
+    fwdHeaders['Referer'] = 'https://www.morningstar.in/';
 
     try {
       const body = ['GET', 'HEAD'].includes(request.method) ? undefined : request.body;

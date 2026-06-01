@@ -140,7 +140,9 @@ var MFfetcher = (function () {
       securityDataPoints:DATA_POINTS, term:'',
     });
     const url  = `${APAC_API}?${params}`;
-    const resp = await fetch(_proxied(url), {
+    // Call screener API directly — it has Access-Control-Allow-Origin: * so no proxy needed.
+    // The proxy is blocked by Morningstar's CloudFront WAF for datacenter IPs.
+    const resp = await fetch(url, {
       headers: { ...BASE_HDRS, Authorization: `Bearer ${jwt}` }
     });
     if (!resp.ok) throw new Error(`Screener API ${resp.status}`);

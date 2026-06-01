@@ -88,6 +88,10 @@ export default {
       }
     }
 
+    // Browsers strip Origin/Referer on cross-origin fetch — inject them here
+    fwdHeaders['Origin']  = 'https://www.morningstar.in';
+    fwdHeaders['Referer'] = 'https://www.morningstar.in/';
+
     try {
       const body = ['GET', 'HEAD'].includes(request.method) ? undefined : request.body;
       const resp = await fetch(targetUrl, {
