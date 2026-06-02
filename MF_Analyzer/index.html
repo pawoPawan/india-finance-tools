@@ -6,6 +6,15 @@
 <title>MF Analyzer · India</title>
 <!-- Service Worker: register early so API calls are intercepted from first load -->
 <script>
+// Detect hard refresh (Ctrl+Shift+R / Cmd+Shift+R):
+//   controller === null  → SW bypassed by browser (hard refresh or very first visit)
+//   navType === 'reload' → page was reloaded (not a fresh navigation)
+// First visit has navType 'navigate', so this combination is unique to hard refresh.
+(function(){
+  var navType = (performance.getEntriesByType('navigation')[0]||{}).type;
+  window._isHardRefresh = !navigator.serviceWorker?.controller && navType === 'reload';
+})();
+
 // _swReady: true once SW is the controller; init() checks this before running
 window._swReady = !('serviceWorker' in navigator) || !!navigator.serviceWorker.controller;
 (function(){
@@ -726,13 +735,26 @@ const PROXY_URL = 'https://mf-proxy-pages.pages.dev';
 let _allCats = [];
 
 async function init() {
+  // Hard refresh (Ctrl+Shift+R) = clear all cached data for a truly fresh start
+  if (window._isHardRefresh) {
+    window._isHardRefresh = false;   // prevent re-clear on subsequent inits
+    await Promise.all([
+      MFidb.clearFunds(),
+      MFidb.clearHoldings(),
+      MFidb.setConfig('refresh_state', null),
+      MFidb.setBulkState({ running:false, done:0, total:0, errors:0, stop:false, stopped:false, savedAt:0 }),
+    ]);
+    _swMsg('INVALIDATE_FUNDS');
+    _swMsg('INVALIDATE_ANALYTICS');
+  }
+
   // Proxy is hardcoded — save to IDB so SW can read it, then set in fetcher
   MFfetcher.setProxy(PROXY_URL);
   await api('/api/config/proxy', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ proxy: PROXY_URL }) });
 
   const fundCount = await MFidb.getFundCount();
   if (!fundCount) {
-    // First run: show welcome banner and auto-start download
+    // First run or after hard refresh: show welcome banner
     _showWelcomeBanner();
   }
 
