@@ -3,7 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MF Analyzer · India</title>
+<title>MF Screener &amp; Analytics · 13,000+ Indian Mutual Funds · br27.in</title>
+<meta name="description" content="Screen and compare 13,000+ Indian mutual funds by returns, expense ratio, star rating and composite score. Holdings analytics, fund finder, and more. Free, runs in your browser.">
+<meta name="keywords" content="mutual fund screener india, best mutual funds india, MF analytics, morningstar india funds, SIP fund selector">
+<meta property="og:title" content="MF Screener &amp; Analytics · br27.in">
+<meta property="og:description" content="Screen 13,000+ Indian mutual funds. Free, private, runs in your browser.">
+<link rel="canonical" href="https://br27.in/MF_Analyzer/">
+<!-- Google AdSense — uncomment and replace ca-pub-XXXXXXXXXXXXXXXX after approval -->
+<!--
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX" crossorigin="anonymous"></script>
+-->
 <!-- Service Worker: register early so API calls are intercepted from first load -->
 <script>
 // Detect hard refresh (Ctrl+Shift+R / Cmd+Shift+R):
@@ -2743,6 +2752,25 @@ _updateMobFilterBtn();
 // Only run init if SW is already controlling this page.
 // If not ready yet (hard refresh / first visit), the controllerchange handler above will call init().
 if(window._swReady) init();
+</script>
+
+<!-- Cookie Consent (required for AdSense) -->
+<div id="cookieBar" style="display:none;position:fixed;bottom:0;left:0;right:0;background:#1C1917;color:#E7E5E4;padding:12px 20px;display:none;align-items:center;justify-content:space-between;gap:12px;z-index:9000;flex-wrap:wrap;box-shadow:0 -2px 16px rgba(0,0,0,.2)">
+  <p style="font-size:.76rem;line-height:1.5;flex:1;min-width:200px;margin:0">We use cookies for advertising and analytics. See our <a href="/privacy-policy.html" style="color:#5EEAD4">Privacy Policy</a>.</p>
+  <div style="display:flex;gap:8px;flex-shrink:0">
+    <button onclick="cookieChoose(false)" style="background:transparent;color:#A8A29E;border:1.5px solid #44403C;padding:6px 12px;border-radius:8px;font-size:.76rem;font-weight:600;cursor:pointer">Decline</button>
+    <button onclick="cookieChoose(true)" style="background:#0F766E;color:#fff;border:none;padding:6px 18px;border-radius:8px;font-size:.76rem;font-weight:700;cursor:pointer">Accept</button>
+  </div>
+</div>
+<script>
+(function(){
+  if(localStorage.getItem('cookieConsent')===null)
+    setTimeout(function(){var b=document.getElementById('cookieBar');if(b)b.style.display='flex';},1200);
+})();
+function cookieChoose(a){
+  localStorage.setItem('cookieConsent',a?'yes':'no');
+  var b=document.getElementById('cookieBar');if(b)b.style.display='none';
+}
 </script>
 </body>
 </html>

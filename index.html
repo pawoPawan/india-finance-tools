@@ -3,8 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Finance Tools · India</title>
-<meta name="description" content="Personal finance tools for Indian investors. Tax & capital gains calculator, mutual fund screener and analytics. Runs entirely in your browser.">
+<title>Finance Tools India · Free MF Screener &amp; Capital Gains Calculator</title>
+<meta name="description" content="Free finance tools for Indian investors. Mutual fund screener with 13,000+ funds, capital gains calculator for ITR filing. Runs entirely in your browser — no login, no data upload.">
+<meta name="keywords" content="mutual fund screener india, capital gains calculator india, LTCG STCG calculator, MF analytics, ITR filing tool, zerodha capital gains">
+<meta property="og:title" content="Finance Tools India · Free MF Screener &amp; Capital Gains Calculator">
+<meta property="og:description" content="Free, privacy-first finance tools for Indian investors. No login required.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://br27.in">
+<link rel="canonical" href="https://br27.in/">
+
+<!-- Google AdSense — uncomment and replace ca-pub-XXXXXXXXXXXXXXXX after approval -->
+<!--
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX" crossorigin="anonymous"></script>
+-->
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -18,20 +30,27 @@
 html,body{min-height:100%;font-family:var(--fu);background:var(--c);color:var(--ink);-webkit-font-smoothing:antialiased}
 
 /* ── HEADER ── */
-.hdr{background:var(--s);border-bottom:1px solid var(--b);padding:0 24px;height:54px;display:flex;align-items:center;box-shadow:0 1px 3px rgba(28,25,23,.06)}
+.hdr{background:var(--s);border-bottom:1px solid var(--b);padding:0 24px;height:54px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 1px 3px rgba(28,25,23,.06)}
 .hdr-brand{font-family:var(--fd);font-size:1.1rem;font-weight:600;letter-spacing:-.02em;color:var(--ink)}
 .hdr-brand span{color:var(--a)}
+.hdr-nav{display:flex;gap:20px}
+.hdr-nav a{font-size:.78rem;color:var(--mu);text-decoration:none;font-weight:500}
+.hdr-nav a:hover{color:var(--a)}
+
+/* ── AD SLOT ── */
+.ad-slot{max-width:860px;margin:0 auto;padding:0 24px;text-align:center}
+.ad-placeholder{background:var(--s);border:1.5px dashed var(--b);border-radius:10px;padding:16px;font-size:.7rem;color:var(--sub);min-height:90px;display:flex;align-items:center;justify-content:center}
 
 /* ── HERO ── */
-.hero{max-width:740px;margin:0 auto;padding:72px 24px 56px;text-align:center}
+.hero{max-width:740px;margin:0 auto;padding:64px 24px 48px;text-align:center}
 .hero-eyebrow{font-size:.75rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--a);margin-bottom:18px}
 .hero h1{font-family:var(--fd);font-size:clamp(2rem,5vw,3rem);font-weight:400;line-height:1.18;letter-spacing:-.03em;color:var(--ink);margin-bottom:18px}
 .hero h1 em{font-style:italic;color:var(--a)}
 .hero p{font-size:1rem;color:var(--mu);line-height:1.65;max-width:520px;margin:0 auto}
 
 /* ── CARDS ── */
-.cards{max-width:860px;margin:0 auto;padding:0 24px 80px;display:grid;grid-template-columns:1fr 1fr;gap:20px}
-@media(max-width:620px){.cards{grid-template-columns:1fr;padding:0 16px 60px}}
+.cards{max-width:860px;margin:0 auto;padding:0 24px 48px;display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:620px){.cards{grid-template-columns:1fr;padding:0 16px 40px}}
 
 .card{background:var(--s);border:1.5px solid var(--b);border-radius:18px;padding:32px 28px;display:flex;flex-direction:column;gap:0;transition:border-color .2s,box-shadow .2s;cursor:pointer;text-decoration:none;color:inherit;position:relative;overflow:hidden}
 .card:hover{border-color:var(--a);box-shadow:0 8px 32px rgba(15,118,110,.12)}
@@ -41,7 +60,6 @@ html,body{min-height:100%;font-family:var(--fu);background:var(--c);color:var(--
 .card-icon{font-size:2rem;margin-bottom:18px;display:block}
 .card-badge{display:inline-flex;align-items:center;gap:4px;font-size:.67rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;padding:3px 9px;border-radius:20px;margin-bottom:14px;width:fit-content}
 .badge-ready{background:var(--as);color:var(--a)}
-.badge-local{background:#ECFDF5;color:#065F46}
 
 .card h2{font-family:var(--fd);font-size:1.35rem;font-weight:600;letter-spacing:-.025em;line-height:1.25;margin-bottom:10px}
 .card p{font-size:.82rem;color:var(--mu);line-height:1.6;flex:1}
@@ -53,27 +71,51 @@ html,body{min-height:100%;font-family:var(--fu);background:var(--c);color:var(--
 .card-arrow{margin-top:22px;display:flex;align-items:center;gap:6px;font-size:.8rem;font-weight:700;color:var(--a);transition:gap .15s}
 .card:hover .card-arrow{gap:10px}
 
-/* ── FOOTER ── */
-.footer{border-top:1px solid var(--b);padding:24px;text-align:center;font-size:.75rem;color:var(--sub)}
-.footer a{color:var(--a);text-decoration:none}
-.footer a:hover{text-decoration:underline}
-
 /* ── PRIVACY STRIP ── */
-.privacy{max-width:860px;margin:0 auto;padding:0 24px 48px;display:flex;align-items:center;justify-content:center;gap:20px;flex-wrap:wrap}
+.privacy{max-width:860px;margin:0 auto;padding:0 24px 40px;display:flex;align-items:center;justify-content:center;gap:20px;flex-wrap:wrap}
 .privacy-item{display:flex;align-items:center;gap:7px;font-size:.75rem;color:var(--sub)}
 .privacy-item span{font-size:.95rem}
+
+/* ── FOOTER ── */
+.footer{border-top:1px solid var(--b);padding:24px;text-align:center;font-size:.75rem;color:var(--sub)}
+.footer a{color:var(--a);text-decoration:none;margin:0 10px}
+.footer a:hover{text-decoration:underline}
+.footer-links{margin-bottom:8px}
+
+/* ── COOKIE CONSENT ── */
+.cookie-bar{position:fixed;bottom:0;left:0;right:0;background:#1C1917;color:#E7E5E4;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:14px;z-index:999;flex-wrap:wrap;box-shadow:0 -2px 16px rgba(0,0,0,.2)}
+.cookie-bar p{font-size:.78rem;line-height:1.5;flex:1;min-width:200px}
+.cookie-bar a{color:#5EEAD4;text-decoration:underline}
+.cookie-bar-btns{display:flex;gap:8px;flex-shrink:0}
+.cookie-accept{background:var(--a);color:#fff;border:none;padding:8px 20px;border-radius:8px;font-size:.78rem;font-weight:700;cursor:pointer}
+.cookie-accept:hover{background:var(--ah)}
+.cookie-decline{background:transparent;color:#A8A29E;border:1.5px solid #44403C;padding:8px 14px;border-radius:8px;font-size:.78rem;font-weight:600;cursor:pointer}
+.cookie-decline:hover{color:#E7E5E4}
 </style>
 </head>
 <body>
 
 <header class="hdr">
   <div class="hdr-brand">Finance Tools <span>· India</span></div>
+  <nav class="hdr-nav">
+    <a href="/about.html">About</a>
+    <a href="/privacy-policy.html">Privacy</a>
+  </nav>
 </header>
+
+<!-- Ad slot — top banner (activates after AdSense approval) -->
+<div class="ad-slot" style="padding-top:20px">
+  <!-- AdSense responsive ad unit: replace comment with your ad code after approval
+  <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+       data-ad-slot="XXXXXXXXXX" data-ad-format="auto" data-full-width-responsive="true"></ins>
+  <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+  -->
+</div>
 
 <section class="hero">
   <div class="hero-eyebrow">Personal Finance · India</div>
   <h1>Tools built for<br><em>Indian investors</em></h1>
-  <p>Two standalone tools — capital gains calculator for tax time, and a full mutual fund screener with analytics. Both run entirely in your browser. No servers, no logins.</p>
+  <p>Free tools for capital gains tax calculation and mutual fund research. Everything runs in your browser — no logins, no servers, no subscriptions.</p>
 </section>
 
 <div class="cards">
@@ -112,16 +154,59 @@ html,body{min-height:100%;font-family:var(--fu);background:var(--c);color:var(--
 
 </div>
 
+<!-- Ad slot — between cards and privacy strip -->
+<div class="ad-slot" style="padding-bottom:24px">
+  <!-- AdSense responsive ad unit: replace comment with your ad code after approval
+  <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+       data-ad-slot="XXXXXXXXXX" data-ad-format="auto" data-full-width-responsive="true"></ins>
+  <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+  -->
+</div>
+
 <div class="privacy">
   <div class="privacy-item"><span>🔒</span> No account needed</div>
   <div class="privacy-item"><span>🖥</span> Runs entirely in browser</div>
   <div class="privacy-item"><span>📁</span> Files stay on your device</div>
-  <div class="privacy-item"><span>🆓</span> Free &amp; open source</div>
+  <div class="privacy-item"><span>🆓</span> Free to use</div>
 </div>
 
 <footer class="footer">
-  <span>Made with experience</span>
+  <div class="footer-links">
+    <a href="/about.html">About</a>
+    <a href="/privacy-policy.html">Privacy Policy</a>
+    <a href="mailto:hello@br27.in">Contact</a>
+  </div>
+  <span>Made with experience · © 2026 br27.in</span>
 </footer>
+
+<!-- Cookie Consent -->
+<div class="cookie-bar" id="cookieBar" style="display:none">
+  <p>We use cookies for advertising (Google AdSense) and analytics. By using this site you agree to our <a href="/privacy-policy.html">Privacy Policy</a>.</p>
+  <div class="cookie-bar-btns">
+    <button class="cookie-decline" onclick="cookieChoose(false)">Decline</button>
+    <button class="cookie-accept" onclick="cookieChoose(true)">Accept</button>
+  </div>
+</div>
+
+<script>
+// Cookie consent logic
+(function(){
+  var consent = localStorage.getItem('cookieConsent');
+  if (consent === null) {
+    // Show banner after short delay so page renders first
+    setTimeout(function(){ document.getElementById('cookieBar').style.display = 'flex'; }, 800);
+  }
+})();
+
+function cookieChoose(accepted) {
+  localStorage.setItem('cookieConsent', accepted ? 'yes' : 'no');
+  document.getElementById('cookieBar').style.display = 'none';
+  // If accepted and AdSense is loaded, enable personalised ads
+  if (accepted && typeof adsbygoogle !== 'undefined') {
+    (adsbygoogle = window.adsbygoogle || []).push({ google_ad_client: 'ca-pub-XXXXXXXXXXXXXXXX', enable_page_level_ads: true });
+  }
+}
+</script>
 
 </body>
 </html>
